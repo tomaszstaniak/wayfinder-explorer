@@ -29,4 +29,13 @@ export default defineConfig(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		// Obsidian runtime rules don't apply to tests (node/jsdom, not the app).
+		files: ['src/**/*.test.ts'],
+		rules: {
+			'no-unsanitized/property': 'off',
+			'obsidianmd/prefer-create-el': 'off',
+			'obsidianmd/prefer-window-timers': 'off',
+		},
+	},
 );
