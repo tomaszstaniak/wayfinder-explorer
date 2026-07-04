@@ -1,1 +1,32 @@
-/* Wayfinder: all styling is generated at runtime into <style data-wayfinder>. */
+/* Wayfinder: explorer styling is generated at runtime into
+   <style data-wayfinder>. This file only styles Wayfinder's own UI. */
+
+.wayfinder-icon-suggestion {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+
+.wayfinder-icon-suggestion-icon {
+	display: flex;
+	align-items: center;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.wayfinder-swatch {
+	display: inline-block;
+	width: 0.9em;
+	height: 0.9em;
+	border-radius: 50%;
+	margin-inline-end: var(--size-4-2);
+	vertical-align: -0.1em;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.wayfinder-color-preview {
+	height: 2em;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	margin-bottom: var(--size-4-3);
+}

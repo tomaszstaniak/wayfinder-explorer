@@ -1,6 +1,7 @@
 import { Notice, Plugin, getIcon, getIconIds } from 'obsidian';
 import { Controller } from './controller';
 import { IconResolver, IconSource } from './icons';
+import { addWayfinderMenu } from './menus';
 import { Store } from './store';
 import { StyleManager } from './style-manager';
 
@@ -43,6 +44,15 @@ export default class WayfinderPlugin extends Plugin {
 		this.registerEvent(
 			this.app.vault.on('delete', (file) => {
 				this.controller.handleDelete(file.path);
+			})
+		);
+		this.registerEvent(
+			this.app.workspace.on('file-menu', (menu, file) => {
+				addWayfinderMenu(menu, file, {
+					app: this.app,
+					store: this.store,
+					iconSource: this.iconSource,
+				});
 			})
 		);
 	}
