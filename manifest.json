@@ -1,0 +1,9 @@
+{
+	"id": "wayfinder",
+	"name": "Wayfinder",
+	"version": "0.1.0",
+	"minAppVersion": "1.7.2",
+	"description": "Readable file explorer: contextual icons by default, folder colors that cascade to their contents.",
+	"author": "Tomasz Staniak",
+	"isDesktopOnly": false
+}
