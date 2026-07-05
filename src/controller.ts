@@ -1,11 +1,11 @@
-import { FolderCounts, IconUriResolver, compile } from './compiler';
+import { HostData, IconUriResolver, compile } from './compiler';
 import { Store } from './store';
 
 export interface ControllerDeps {
 	store: Store;
 	resolve: IconUriResolver;
-	/** Current direct-child counts per folder; null when unavailable. */
-	counts(): FolderCounts | null;
+	/** Vault-derived data (folder counts, content-detected icons). */
+	hostData(): HostData;
 	/** Push compiled CSS into the managed style element. */
 	setCss(css: string): void;
 	/** Developer-facing warning channel (console). Deduplicated here. */
@@ -71,7 +71,7 @@ export class Controller {
 		const { css, missingIcons } = compile(
 			this.deps.store.state,
 			this.deps.resolve,
-			this.deps.counts() ?? undefined
+			this.deps.hostData()
 		);
 		for (const name of missingIcons) {
 			this.warnOnce(`Wayfinder: icon "${name}" is not available; rule skipped.`);

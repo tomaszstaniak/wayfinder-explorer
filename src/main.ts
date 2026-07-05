@@ -1,7 +1,7 @@
-import { Notice, Plugin, TFolder, getIcon, getIconIds } from 'obsidian';
-import { FolderCounts } from './compiler';
+import { Notice, Plugin, TFile, TFolder, getIcon, getIconIds } from 'obsidian';
+import { FolderCounts, HostData } from './compiler';
 import { Controller } from './controller';
-import { IconResolver, IconSource } from './icons';
+import { FRONTMATTER_ICONS, IconResolver, IconSource } from './icons';
 import { addWayfinderMenu } from './menus';
 import { WayfinderSettingTab } from './settings';
 import { Store } from './store';
@@ -12,6 +12,8 @@ export default class WayfinderPlugin extends Plugin {
 	store!: Store;
 	iconSource!: IconSource;
 	controller!: Controller;
+	/** path -> icon candidates, from frontmatter detection. */
+	private contentIcons = new Map<string, readonly string[]>();
 
 	async onload() {
 		this.styleManager = new StyleManager(document);
@@ -31,7 +33,7 @@ export default class WayfinderPlugin extends Plugin {
 		this.controller = new Controller({
 			store: this.store,
 			resolve: resolver.resolve,
-			counts: () => (this.store.state.settings.showFolderCounts ? this.folderCounts() : null),
+			hostData: () => this.hostData(),
 			setCss: (css) => this.styleManager.setCss(css),
 			warn: (msg) => console.warn(msg),
 			notify: (msg) => new Notice(msg),
@@ -43,16 +45,23 @@ export default class WayfinderPlugin extends Plugin {
 		this.registerEvent(
 			this.app.vault.on('rename', (file, oldPath) => {
 				this.controller.handleRename(oldPath, file.path);
+				if (this.contentIcons.delete(oldPath)) this.updateContentIcons(file);
 				this.countsChanged();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on('delete', (file) => {
 				this.controller.handleDelete(file.path);
+				if (this.contentIcons.delete(file.path)) this.controller.requestRecompile();
 				this.countsChanged();
 			})
 		);
 		this.registerEvent(this.app.vault.on('create', () => this.countsChanged()));
+		this.registerEvent(
+			this.app.metadataCache.on('changed', (file) => this.updateContentIcons(file))
+		);
+		// Initial scan once all metadata is indexed (also fires on startup).
+		this.registerEvent(this.app.metadataCache.on('resolved', () => this.scanContentIcons()));
 		this.registerEvent(
 			this.app.workspace.on('file-menu', (menu, file) => {
 				addWayfinderMenu(menu, file, {
@@ -68,14 +77,27 @@ export default class WayfinderPlugin extends Plugin {
 		this.styleManager.unmount();
 	}
 
-	/** Direct child counts for every folder in the vault. */
+	private hostData(): HostData {
+		const host: HostData = {};
+		if (this.store.state.settings.showFolderCounts) host.counts = this.folderCounts();
+		if (this.contentIcons.size > 0) host.contentIcons = this.contentIcons;
+		return host;
+	}
+
+	/** Counts per folder: direct children, or notes in the whole subtree. */
 	private folderCounts(): FolderCounts {
+		const notesMode = this.store.state.settings.folderCountMode === 'notes';
 		const counts = new Map<string, number>();
-		const walk = (folder: TFolder) => {
-			if (folder.path !== '/') counts.set(folder.path, folder.children.length);
+		const walk = (folder: TFolder): number => {
+			let notes = 0;
 			for (const child of folder.children) {
-				if (child instanceof TFolder) walk(child);
+				if (child instanceof TFolder) notes += walk(child);
+				else if (child instanceof TFile && child.extension === 'md') notes += 1;
 			}
+			if (folder.path !== '/') {
+				counts.set(folder.path, notesMode ? notes : folder.children.length);
+			}
+			return notes;
 		};
 		walk(this.app.vault.getRoot());
 		return counts;
@@ -83,5 +105,39 @@ export default class WayfinderPlugin extends Plugin {
 
 	private countsChanged(): void {
 		if (this.store.state.settings.showFolderCounts) this.controller.requestRecompile();
+	}
+
+	/** Frontmatter keys that mark special content types (Kanban, …). */
+	private detectContentIcons(file: TFile): readonly string[] | null {
+		if (file.extension !== 'md') return null;
+		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
+		if (!fm) return null;
+		for (const entry of FRONTMATTER_ICONS) {
+			if (entry.key in fm) return entry.icons;
+		}
+		return null;
+	}
+
+	private updateContentIcons(file: unknown): void {
+		if (!(file instanceof TFile)) return;
+		const icons = this.detectContentIcons(file);
+		const had = this.contentIcons.get(file.path);
+		if (icons === null ? had === undefined : had === icons) return;
+		if (icons === null) this.contentIcons.delete(file.path);
+		else this.contentIcons.set(file.path, icons);
+		this.controller.requestRecompile();
+	}
+
+	private scanContentIcons(): void {
+		const next = new Map<string, readonly string[]>();
+		for (const file of this.app.vault.getMarkdownFiles()) {
+			const icons = this.detectContentIcons(file);
+			if (icons) next.set(file.path, icons);
+		}
+		const changed =
+			next.size !== this.contentIcons.size ||
+			[...next.keys()].some((k) => !this.contentIcons.has(k));
+		this.contentIcons = next;
+		if (changed) this.controller.requestRecompile();
 	}
 }

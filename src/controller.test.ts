@@ -21,7 +21,7 @@ function harness(initialData: unknown = null, opts: { failSave?: boolean } = {})
 	const deps: ControllerDeps = {
 		store,
 		resolve: (name) => (name.startsWith('gone') ? null : `url("data:fake/${name}")`),
-		counts: () => (store.state.settings.showFolderCounts ? counts : null),
+		hostData: () => (store.state.settings.showFolderCounts ? { counts } : {}),
 		setCss: (css) => cssHistory.push(css),
 		warn: (m) => warnings.push(m),
 		notify: (m) => notices.push(m),

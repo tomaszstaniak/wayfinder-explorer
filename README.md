@@ -33,7 +33,8 @@ Disable the plugin and every trace is gone.
 | Default folder icons | on | Folder icon on every folder |
 | Background tint strength | 9% | Wash intensity; 0 disables the wash |
 | Main line width | 2px | The colored vertical line |
-| Folder item counts | off | Direct-child count per folder, monospace, right-aligned |
+| Folder item counts | off | Count per folder, monospace, right-aligned |
+| Count mode | items | "Items inside" (direct children) or "Notes in subtree" |
 
 ## Controls
 
@@ -43,16 +44,19 @@ Right-click a **file**: set/remove icon.
 
 ## Data
 
-Stored in `.obsidian/plugins/wayfinder/data.json`: folder/file assignments by
+Stored in `.obsidian/plugins/wayfinder-explorer/data.json`: folder/file assignments by
 vault path plus the settings above. Invalid entries are skipped with a
 console warning, never crashing the explorer.
 
 ## Limitations
 
 - Decorates only the core file explorer (not tabs, search, or third-party
-  explorers such as Notebook Navigator).
-- File types that live inside `.md` files (e.g. Kanban boards) get the note
-  icon — extension-based matching cannot see file contents.
+  explorers such as Notebook Navigator). Search results and tab headers
+  carry no path attributes in their DOM, so extending there requires a
+  DOM-decoration layer — planned, not yet built.
+- Kanban boards and Excalidraw drawings are recognized via their
+  frontmatter (`kanban-plugin`, `excalidraw-plugin`); other `.md`-embedded
+  types get the note icon.
 - Minimum Obsidian version: 1.7.2 (`minAppVersion`). The CSS relies on
   `:has()` and `color-mix()`. Verified so far on Obsidian desktop (macOS);
   mobile is untested.

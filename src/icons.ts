@@ -34,6 +34,16 @@ export const SUFFIX_ICONS: ReadonlyArray<{ suffix: string; icons: readonly strin
 	),
 ];
 
+/**
+ * Content-detected file types: a frontmatter key marks the file as a
+ * special type that deserves its own icon regardless of extension.
+ * First available candidate wins.
+ */
+export const FRONTMATTER_ICONS: ReadonlyArray<{ key: string; icons: readonly string[] }> = [
+	{ key: 'kanban-plugin', icons: ['square-kanban', 'kanban', 'layout-list'] },
+	{ key: 'excalidraw-plugin', icons: ['pencil-ruler'] },
+];
+
 /** Source of SVG icons; production wraps Obsidian's getIcon/getIconIds. */
 export interface IconSource {
 	/** All available icon ids (for the picker). */

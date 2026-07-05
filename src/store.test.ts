@@ -96,7 +96,15 @@ describe('parseData', () => {
 			tintStrength: 25,
 			lineWidth: 1,
 			showFolderCounts: false,
+			folderCountMode: 'items',
 		});
+	});
+
+	it('validates folderCountMode and falls back to items', () => {
+		const notes = parseData({ version: 1, settings: { folderCountMode: 'notes' } });
+		expect(notes.data.settings.folderCountMode).toBe('notes');
+		const bogus = parseData({ version: 1, settings: { folderCountMode: 'bogus' } });
+		expect(bogus.data.settings.folderCountMode).toBe('items');
 	});
 
 	it('drops file entries without a valid icon', () => {

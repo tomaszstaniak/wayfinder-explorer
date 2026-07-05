@@ -1,6 +1,8 @@
 import {
 	DEFAULT_SETTINGS,
+	FOLDER_COUNT_MODES,
 	FileEntry,
+	FolderCountMode,
 	FolderEntry,
 	HEX_COLOR_RE,
 	SCHEMA_VERSION,
@@ -91,6 +93,9 @@ function parseSettings(raw: unknown): WayfinderSettings {
 			typeof r.showFolderCounts === 'boolean'
 				? r.showFolderCounts
 				: DEFAULT_SETTINGS.showFolderCounts,
+		folderCountMode: FOLDER_COUNT_MODES.includes(r.folderCountMode as FolderCountMode)
+			? (r.folderCountMode as FolderCountMode)
+			: DEFAULT_SETTINGS.folderCountMode,
 	};
 }
 

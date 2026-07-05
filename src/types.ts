@@ -24,7 +24,12 @@ export interface WayfinderSettings {
 	lineWidth: number;
 	/** Show the number of items directly inside each folder. */
 	showFolderCounts: boolean;
+	/** What folder counts measure: direct children or notes in the subtree. */
+	folderCountMode: FolderCountMode;
 }
+
+export type FolderCountMode = 'items' | 'notes';
+export const FOLDER_COUNT_MODES: readonly FolderCountMode[] = ['items', 'notes'];
 
 export interface WayfinderData {
 	version: number;
@@ -44,6 +49,7 @@ export const DEFAULT_SETTINGS: WayfinderSettings = {
 	tintStrength: 9,
 	lineWidth: 2,
 	showFolderCounts: false,
+	folderCountMode: 'items',
 };
 
 export function defaultData(): WayfinderData {

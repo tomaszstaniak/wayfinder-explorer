@@ -65,6 +65,18 @@ function depthOf(path: string): number {
 /** Direct child counts per folder path; provided by the host, not persisted. */
 export type FolderCounts = ReadonlyMap<string, number>;
 
+/**
+ * Content-detected icon candidates per file path (e.g. Kanban boards
+ * found via frontmatter). Provided by the host, not persisted.
+ */
+export type ContentIcons = ReadonlyMap<string, readonly string[]>;
+
+/** Vault-derived inputs the host supplies alongside persisted state. */
+export interface HostData {
+	counts?: FolderCounts;
+	contentIcons?: ContentIcons;
+}
+
 function countsBlock(counts: FolderCounts): string {
 	const parts: string[] = [
 		`${SCOPE} .nav-folder-title::after {`,
@@ -87,8 +99,9 @@ function countsBlock(counts: FolderCounts): string {
 export function compile(
 	state: WayfinderData,
 	resolve: IconUriResolver,
-	counts?: FolderCounts
+	host: HostData = {}
 ): CompileResult {
+	const counts = host.counts;
 	const parts: string[] = [];
 	const missing = new Set<string>();
 
@@ -128,6 +141,20 @@ export function compile(
 			if (!uri) continue;
 			const sel = `${SCOPE} .nav-file-title[data-path$="${escapeCssString(entry.suffix)}" i] .nav-file-title-content::before`;
 			parts.push(`${sel} { ${iconVars(uri)} }`);
+		}
+	}
+
+	// --- layer 2b: content-detected icons (beat suffix defaults by emission
+	// order; manual overrides in layer 4 still win) -------------------------
+
+	if (state.settings.defaultFileIcons && host.contentIcons) {
+		const entries = [...host.contentIcons.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
+		for (const [path, candidates] of entries) {
+			const uri = icon(candidates);
+			if (!uri) continue;
+			parts.push(
+				`${SCOPE} .nav-file-title[data-path="${escapeCssString(path)}"] .nav-file-title-content::before { ${iconVars(uri)} }`
+			);
 		}
 	}
 

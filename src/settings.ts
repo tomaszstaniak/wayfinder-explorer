@@ -57,16 +57,32 @@ export class WayfinderSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Folder item counts')
-			.setDesc('Show how many items sit directly inside each folder, right-aligned in monospace.')
+			.setDesc('Show a count on each folder, right-aligned in monospace.')
 			.addToggle((t) =>
-				t
-					.setValue(s.showFolderCounts)
-					.onChange((v) => this.store.updateSettings({ showFolderCounts: v }))
+				t.setValue(s.showFolderCounts).onChange((v) => {
+					this.store.updateSettings({ showFolderCounts: v });
+					this.display();
+				})
 			);
+
+		if (s.showFolderCounts) {
+			new Setting(containerEl)
+				.setName('Count mode')
+				.setDesc('Items: files and folders directly inside. Notes: notes anywhere in the subtree.')
+				.addDropdown((d) =>
+					d
+						.addOption('items', 'Items inside')
+						.addOption('notes', 'Notes in subtree')
+						.setValue(s.folderCountMode)
+						.onChange((v) =>
+							this.store.updateSettings({ folderCountMode: v === 'notes' ? 'notes' : 'items' })
+						)
+				);
+		}
 
 		new Setting(containerEl)
 			.setName('Restore defaults')
-			.setDesc('Reset the four options above. Folder colors and manual icons are not touched.')
+			.setDesc('Reset the options above. Folder colors and manual icons are not touched.')
 			.addButton((b) =>
 				b.setButtonText('Restore').onClick(() => {
 					this.store.updateSettings({ ...DEFAULT_SETTINGS });

@@ -179,7 +179,7 @@ describe('compile: folder counts', () => {
 	]);
 
 	it('emits nothing without the setting even when counts are provided', () => {
-		const { css } = compile(state(), fakeResolve, counts);
+		const { css } = compile(state(), fakeResolve, { counts });
 		expect(css).not.toContain('::after { content:');
 	});
 
@@ -187,7 +187,7 @@ describe('compile: folder counts', () => {
 		const { css } = compile(
 			state({ settings: { ...defaultData().settings, showFolderCounts: true } }),
 			fakeResolve,
-			counts
+			{ counts }
 		);
 		expect(css).toContain('font-family: var(--font-monospace);');
 		expect(css).toContain('[data-path="A"]::after { content: "3"; }');
@@ -203,6 +203,48 @@ describe('compile: folder counts', () => {
 			fakeResolve
 		);
 		expect(css).not.toContain('::after { content:');
+	});
+});
+
+describe('compile: content-detected icons', () => {
+	const contentIcons = new Map<string, readonly string[]>([
+		['Boards/roadmap.md', ['square-kanban', 'kanban']],
+	]);
+
+	it('emits content icon rules after suffix defaults so they win', () => {
+		const { css } = compile(state(), fakeResolve, { contentIcons });
+		const suffixRule = css.indexOf('[data-path$=".md" i]');
+		const contentRule = css.indexOf('[data-path="Boards/roadmap.md"]');
+		expect(contentRule).toBeGreaterThan(suffixRule);
+		expect(css).toContain('data:fake/square-kanban');
+	});
+
+	it('lets manual file overrides win over content icons', () => {
+		const { css } = compile(
+			state({ files: { 'Boards/roadmap.md': { icon: 'star' } } }),
+			fakeResolve,
+			{ contentIcons }
+		);
+		const contentRule = css.indexOf('data:fake/square-kanban');
+		const manualRule = css.indexOf('data:fake/star');
+		expect(manualRule).toBeGreaterThan(contentRule);
+	});
+
+	it('falls back through candidates and reports missing ones', () => {
+		const { css, missingIcons } = compile(state(), fakeResolve, {
+			contentIcons: new Map([['a.md', ['gone-1', 'kanban'] as const]]),
+		});
+		expect(css).toContain('data:fake/kanban');
+		expect(missingIcons).toContain('gone-1');
+	});
+
+	it('omits content icons when default file icons are disabled', () => {
+		const { css } = compile(
+			state({ settings: { ...defaultData().settings, defaultFileIcons: false } }),
+			fakeResolve,
+			{ contentIcons }
+		);
+		expect(css).not.toContain('square-kanban');
 	});
 });
 
