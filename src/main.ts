@@ -2,6 +2,7 @@ import { Notice, Plugin, getIcon, getIconIds } from 'obsidian';
 import { Controller } from './controller';
 import { IconResolver, IconSource } from './icons';
 import { addWayfinderMenu } from './menus';
+import { WayfinderSettingTab } from './settings';
 import { Store } from './store';
 import { StyleManager } from './style-manager';
 
@@ -35,6 +36,7 @@ export default class WayfinderPlugin extends Plugin {
 			schedule: (fn) => queueMicrotask(fn),
 		});
 		await this.controller.start();
+		this.addSettingTab(new WayfinderSettingTab(this.app, this, this.store));
 
 		this.registerEvent(
 			this.app.vault.on('rename', (file, oldPath) => {
