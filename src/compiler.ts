@@ -62,7 +62,33 @@ function depthOf(path: string): number {
 	return path.split('/').length;
 }
 
-export function compile(state: WayfinderData, resolve: IconUriResolver): CompileResult {
+/** Direct child counts per folder path; provided by the host, not persisted. */
+export type FolderCounts = ReadonlyMap<string, number>;
+
+function countsBlock(counts: FolderCounts): string {
+	const parts: string[] = [
+		`${SCOPE} .nav-folder-title::after {`,
+		`\tfont-family: var(--font-monospace);`,
+		`\tfont-size: var(--font-smallest, 0.8em);`,
+		`\tcolor: var(--text-faint);`,
+		`\tmargin-inline-start: auto;`,
+		`\tpadding-inline-start: var(--size-4-2, 8px);`,
+		`}`,
+	];
+	const sorted = [...counts.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
+	for (const [path, count] of sorted) {
+		parts.push(
+			`${SCOPE} .nav-folder-title[data-path="${escapeCssString(path)}"]::after { content: "${count}"; }`
+		);
+	}
+	return parts.join('\n');
+}
+
+export function compile(
+	state: WayfinderData,
+	resolve: IconUriResolver,
+	counts?: FolderCounts
+): CompileResult {
 	const parts: string[] = [];
 	const missing = new Set<string>();
 
@@ -76,6 +102,10 @@ export function compile(state: WayfinderData, resolve: IconUriResolver): Compile
 	};
 
 	parts.push(staticBlock());
+
+	if (state.settings.showFolderCounts && counts) {
+		parts.push(countsBlock(counts));
+	}
 
 	// --- layer 2: default icons ------------------------------------------
 

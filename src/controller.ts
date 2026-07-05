@@ -1,9 +1,11 @@
-import { IconUriResolver, compile } from './compiler';
+import { FolderCounts, IconUriResolver, compile } from './compiler';
 import { Store } from './store';
 
 export interface ControllerDeps {
 	store: Store;
 	resolve: IconUriResolver;
+	/** Current direct-child counts per folder; null when unavailable. */
+	counts(): FolderCounts | null;
 	/** Push compiled CSS into the managed style element. */
 	setCss(css: string): void;
 	/** Developer-facing warning channel (console). Deduplicated here. */
@@ -47,6 +49,14 @@ export class Controller {
 		this.deps.store.handleDelete(path);
 	}
 
+	/**
+	 * Public entry for host-side changes the store cannot see
+	 * (e.g. vault create events affecting folder counts).
+	 */
+	requestRecompile(): void {
+		this.scheduleRecompile();
+	}
+
 	/** Coalesces bursts: many store changes in one tick compile once. */
 	private scheduleRecompile(): void {
 		if (this.pending) return;
@@ -58,7 +68,11 @@ export class Controller {
 	}
 
 	recompileNow(): void {
-		const { css, missingIcons } = compile(this.deps.store.state, this.deps.resolve);
+		const { css, missingIcons } = compile(
+			this.deps.store.state,
+			this.deps.resolve,
+			this.deps.counts() ?? undefined
+		);
 		for (const name of missingIcons) {
 			this.warnOnce(`Wayfinder: icon "${name}" is not available; rule skipped.`);
 		}

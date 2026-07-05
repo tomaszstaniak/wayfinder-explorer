@@ -24,9 +24,11 @@ async function makeStore(initial: unknown = null) {
 describe('normalizePath', () => {
 	it('normalizes separators and edges', () => {
 		expect(normalizePath('/a/b/')).toBe('a/b');
-		expect(normalizePath('a\\b')).toBe('a/b');
 		expect(normalizePath('a//b')).toBe('a/b');
 		expect(normalizePath('  a/b  ')).toBe('a/b');
+	});
+	it('preserves backslashes in names (valid on macOS/Linux)', () => {
+		expect(normalizePath('a\\b')).toBe('a\\b');
 	});
 	it('rejects unusable input', () => {
 		expect(normalizePath('')).toBeNull();
@@ -93,6 +95,7 @@ describe('parseData', () => {
 			defaultFolderIcons: true,
 			tintStrength: 25,
 			lineWidth: 1,
+			showFolderCounts: false,
 		});
 	});
 

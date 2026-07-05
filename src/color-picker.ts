@@ -33,7 +33,7 @@ export class ColorPickerModal extends Modal {
 
 		new Setting(contentEl)
 			.setName('Color')
-			.setDesc('Six-digit hex, e.g. #a78bfa')
+			.setDesc('Six-digit hex color such as #a78bfa')
 			.addText((text) => {
 				textInput = text;
 				text.setValue(this.value).onChange((v) => {

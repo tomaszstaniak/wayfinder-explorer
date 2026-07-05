@@ -22,6 +22,8 @@ export interface WayfinderSettings {
 	tintStrength: number;
 	/** Main line width, integer px. */
 	lineWidth: number;
+	/** Show the number of items directly inside each folder. */
+	showFolderCounts: boolean;
 }
 
 export interface WayfinderData {
@@ -41,6 +43,7 @@ export const DEFAULT_SETTINGS: WayfinderSettings = {
 	defaultFolderIcons: true,
 	tintStrength: 9,
 	lineWidth: 2,
+	showFolderCounts: false,
 };
 
 export function defaultData(): WayfinderData {

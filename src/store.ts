@@ -26,7 +26,6 @@ export interface ParseResult {
 export function normalizePath(input: unknown): string | null {
 	if (typeof input !== 'string') return null;
 	let p = input.trim();
-	p = p.replace(/\\/g, '/');
 	p = p.replace(/\/{2,}/g, '/');
 	p = p.replace(/^\//, '').replace(/\/$/, '');
 	if (p === '' || p === '.') return null;
@@ -88,6 +87,10 @@ function parseSettings(raw: unknown): WayfinderSettings {
 			SETTINGS_BOUNDS.lineWidth.max,
 			DEFAULT_SETTINGS.lineWidth
 		),
+		showFolderCounts:
+			typeof r.showFolderCounts === 'boolean'
+				? r.showFolderCounts
+				: DEFAULT_SETTINGS.showFolderCounts,
 	};
 }
 

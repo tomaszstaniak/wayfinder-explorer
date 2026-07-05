@@ -17,9 +17,11 @@ function harness(initialData: unknown = null, opts: { failSave?: boolean } = {})
 	const warnings: string[] = [];
 	const notices: string[] = [];
 	const scheduled: Array<() => void> = [];
+	const counts = new Map<string, number>();
 	const deps: ControllerDeps = {
 		store,
 		resolve: (name) => (name.startsWith('gone') ? null : `url("data:fake/${name}")`),
+		counts: () => (store.state.settings.showFolderCounts ? counts : null),
 		setCss: (css) => cssHistory.push(css),
 		warn: (m) => warnings.push(m),
 		notify: (m) => notices.push(m),
@@ -29,7 +31,7 @@ function harness(initialData: unknown = null, opts: { failSave?: boolean } = {})
 	const runScheduled = () => {
 		while (scheduled.length) scheduled.shift()!();
 	};
-	return { controller, store, cssHistory, warnings, notices, scheduled, runScheduled, saves };
+	return { controller, store, cssHistory, warnings, notices, scheduled, runScheduled, saves, counts };
 }
 
 describe('Controller', () => {
@@ -97,6 +99,18 @@ describe('Controller', () => {
 		h.runScheduled();
 		const missing = h.warnings.filter((w) => w.includes('gone-icon'));
 		expect(missing).toHaveLength(1);
+	});
+
+	it('includes folder counts only when the setting is on', async () => {
+		const h = harness();
+		await h.controller.start();
+		h.counts.set('A', 7);
+		h.controller.requestRecompile();
+		h.runScheduled();
+		expect(h.cssHistory.at(-1)).not.toContain('content: "7"');
+		h.store.updateSettings({ showFolderCounts: true });
+		h.runScheduled();
+		expect(h.cssHistory.at(-1)).toContain('[data-path="A"]::after { content: "7"; }');
 	});
 
 	it('notifies on save failure and keeps compiling', async () => {

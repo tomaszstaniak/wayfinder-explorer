@@ -30,6 +30,14 @@ export default defineConfig(
 	},
 	...obsidianmd.configs.recommended,
 	{
+		// Declarative settings (1.13+ settings search) is a store-submission
+		// task, tracked for v2; the imperative tab is fine for a local v1.
+		files: ['src/settings.ts'],
+		rules: {
+			'obsidianmd/settings-tab/prefer-setting-definitions': 'off',
+		},
+	},
+	{
 		// Obsidian runtime rules don't apply to tests (node/jsdom, not the app).
 		files: ['src/**/*.test.ts'],
 		rules: {

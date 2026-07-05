@@ -171,6 +171,41 @@ describe('compile: escaping and robustness', () => {
 	});
 });
 
+describe('compile: folder counts', () => {
+	const counts = new Map([
+		['B', 12],
+		['A', 3],
+		['A/we"ird', 5],
+	]);
+
+	it('emits nothing without the setting even when counts are provided', () => {
+		const { css } = compile(state(), fakeResolve, counts);
+		expect(css).not.toContain('::after { content:');
+	});
+
+	it('emits monospace count rules per folder when enabled', () => {
+		const { css } = compile(
+			state({ settings: { ...defaultData().settings, showFolderCounts: true } }),
+			fakeResolve,
+			counts
+		);
+		expect(css).toContain('font-family: var(--font-monospace);');
+		expect(css).toContain('[data-path="A"]::after { content: "3"; }');
+		expect(css).toContain('[data-path="B"]::after { content: "12"; }');
+		expect(css).toContain('[data-path="A/we\\"ird"]::after { content: "5"; }');
+		// deterministic: sorted by path
+		expect(css.indexOf('content: "3"')).toBeLessThan(css.indexOf('content: "12"'));
+	});
+
+	it('emits nothing when enabled but counts are unavailable', () => {
+		const { css } = compile(
+			state({ settings: { ...defaultData().settings, showFolderCounts: true } }),
+			fakeResolve
+		);
+		expect(css).not.toContain('::after { content:');
+	});
+});
+
 describe('compile: performance guard', () => {
 	it('compiles 500 color roots and 1000 icon overrides quickly', () => {
 		const folders: WayfinderData['folders'] = {};

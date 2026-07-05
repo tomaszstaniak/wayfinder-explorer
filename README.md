@@ -33,6 +33,7 @@ Disable the plugin and every trace is gone.
 | Default folder icons | on | Folder icon on every folder |
 | Background tint strength | 9% | Wash intensity; 0 disables the wash |
 | Main line width | 2px | The colored vertical line |
+| Folder item counts | off | Direct-child count per folder, monospace, right-aligned |
 
 ## Controls
 
@@ -52,8 +53,9 @@ console warning, never crashing the explorer.
   explorers such as Notebook Navigator).
 - File types that live inside `.md` files (e.g. Kanban boards) get the note
   icon — extension-based matching cannot see file contents.
-- Requires an Obsidian version whose engine supports `:has()` and
-  `color-mix()` (any current desktop/mobile build).
+- Minimum Obsidian version: 1.7.2 (`minAppVersion`). The CSS relies on
+  `:has()` and `color-mix()`. Verified so far on Obsidian desktop (macOS);
+  mobile is untested.
 
 ## Conflicts
 

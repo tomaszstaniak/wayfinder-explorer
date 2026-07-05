@@ -35,7 +35,7 @@ export class WayfinderSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Background tint strength')
-			.setDesc('How strongly a folder color washes over its contents (percent). 0 keeps the colored name and line but no background.')
+			.setDesc('How strongly a folder color washes over its contents (percent). Zero keeps the colored name and line without a background.')
 			.addSlider((sl) =>
 				sl
 					.setLimits(SETTINGS_BOUNDS.tintStrength.min, SETTINGS_BOUNDS.tintStrength.max, 1)
@@ -53,6 +53,15 @@ export class WayfinderSettingTab extends PluginSettingTab {
 					.setValue(s.lineWidth)
 					.setDynamicTooltip()
 					.onChange((v) => this.store.updateSettings({ lineWidth: v }))
+			);
+
+		new Setting(containerEl)
+			.setName('Folder item counts')
+			.setDesc('Show how many items sit directly inside each folder, right-aligned in monospace.')
+			.addToggle((t) =>
+				t
+					.setValue(s.showFolderCounts)
+					.onChange((v) => this.store.updateSettings({ showFolderCounts: v }))
 			);
 
 		new Setting(containerEl)
