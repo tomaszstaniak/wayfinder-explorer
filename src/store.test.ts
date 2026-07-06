@@ -91,13 +91,31 @@ describe('parseData', () => {
 			settings: { tintStrength: 99, lineWidth: 0, defaultFileIcons: false, bogus: 1 },
 		});
 		expect(r.data.settings).toEqual({
+			...defaultData().settings,
 			defaultFileIcons: false,
-			defaultFolderIcons: true,
 			tintStrength: 25,
 			lineWidth: 1,
-			showFolderCounts: false,
-			folderCountMode: 'items',
 		});
+	});
+
+	it('validates appearance settings with zero-as-default sentinels', () => {
+		const r = parseData({
+			version: 1,
+			settings: {
+				leaderStyle: 'dots',
+				treeIndent: 3, // below min, non-zero -> clamps to min
+				itemHeight: 0, // sentinel stays
+				rootItemSpacing: 99,
+				showIndentGuides: false,
+			},
+		});
+		expect(r.data.settings.leaderStyle).toBe('dots');
+		expect(r.data.settings.treeIndent).toBe(8);
+		expect(r.data.settings.itemHeight).toBe(0);
+		expect(r.data.settings.rootItemSpacing).toBe(24);
+		expect(r.data.settings.showIndentGuides).toBe(false);
+		const bogus = parseData({ version: 1, settings: { leaderStyle: 'zigzag' } });
+		expect(bogus.data.settings.leaderStyle).toBe('none');
 	});
 
 	it('validates folderCountMode and falls back to items', () => {

@@ -77,7 +77,14 @@ export interface HostData {
 	contentIcons?: ContentIcons;
 }
 
-function countsBlock(counts: FolderCounts): string {
+const LEADER_GRADIENTS: Record<string, string> = {
+	dots: 'repeating-linear-gradient(to right, var(--wf-leader-color) 0 1px, transparent 1px 5px)',
+	dashes: 'repeating-linear-gradient(to right, var(--wf-leader-color) 0 4px, transparent 4px 8px)',
+	line: 'linear-gradient(var(--wf-leader-color), var(--wf-leader-color))',
+};
+
+function countsBlock(counts: FolderCounts, settings: WayfinderData['settings']): string {
+	const leader = LEADER_GRADIENTS[settings.leaderStyle];
 	const parts: string[] = [
 		`${SCOPE} .nav-folder-title::after {`,
 		`\tfont-family: var(--font-monospace);`,
@@ -85,15 +92,61 @@ function countsBlock(counts: FolderCounts): string {
 		`\tcolor: var(--text-muted);`,
 		`\tmargin-inline-start: auto;`,
 		`\tpadding-inline-start: var(--size-4-2, 8px);`,
+		...(leader
+			? [
+					`\t--wf-leader-color: color-mix(in srgb, var(--text-muted) 40%, transparent);`,
+					`\tflex-grow: 1;`,
+					`\ttext-align: right;`,
+					`\tbackground-image: ${leader};`,
+					`\tbackground-repeat: no-repeat;`,
+					`\tbackground-position: left center;`,
+				]
+			: []),
 		`}`,
 	];
 	const sorted = [...counts.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
 	for (const [path, count] of sorted) {
+		// The leader stops before the number: the compiler knows the count's
+		// width in monospace characters, so it sizes the gradient per folder.
+		const leaderSize = leader
+			? ` background-size: calc(100% - ${String(count).length + 2}ch) 1px;`
+			: '';
 		parts.push(
-			`${SCOPE} .nav-folder-title[data-path="${escapeCssString(path)}"]::after { content: "${count}"; }`
+			`${SCOPE} .nav-folder-title[data-path="${escapeCssString(path)}"]::after { content: "${count}";${leaderSize} }`
 		);
 	}
 	return parts.join('\n');
+}
+
+/** Layout adjustments; emits nothing while every setting is at its default. */
+function appearanceBlock(s: WayfinderData['settings']): string[] {
+	const parts: string[] = [];
+	if (!s.showIndentGuides) {
+		parts.push(`${SCOPE} { --nav-indentation-guide-width: 0px; }`);
+	}
+	if (s.rootItemSpacing > 0) {
+		parts.push(
+			`${SCOPE} .nav-folder.mod-root > .nav-folder-children > .tree-item { margin-bottom: ${s.rootItemSpacing}px; }`
+		);
+	}
+	if (s.treeIndent > 0) {
+		// Stock indent = children padding (4px) + margin; keep padding fixed
+		// so the guide line's position stays proportional.
+		parts.push(
+			`${SCOPE} .tree-item-children { --nav-item-children-padding-start: 4px; --nav-item-children-margin-start: ${Math.max(0, s.treeIndent - 4)}px; }`
+		);
+	}
+	if (s.itemHeight > 0) {
+		const pad = Math.max(0, Math.round((s.itemHeight - 18) / 2));
+		parts.push(
+			`${SCOPE} .tree-item-self { min-height: ${s.itemHeight}px; padding-top: ${pad}px; padding-bottom: ${pad}px; align-items: center; }`
+		);
+		if (s.scaleTextWithHeight && s.itemHeight < 28) {
+			const font = Math.max(10, Math.round(s.itemHeight * 0.46));
+			parts.push(`${SCOPE} .tree-item-self { font-size: min(var(--nav-item-size), ${font}px); }`);
+		}
+	}
+	return parts;
 }
 
 export function compile(
@@ -115,9 +168,10 @@ export function compile(
 	};
 
 	parts.push(staticBlock());
+	parts.push(...appearanceBlock(state.settings));
 
 	if (state.settings.showFolderCounts && counts) {
-		parts.push(countsBlock(counts));
+		parts.push(countsBlock(counts, state.settings));
 	}
 
 	// --- layer 2: default icons ------------------------------------------

@@ -26,10 +26,25 @@ export interface WayfinderSettings {
 	showFolderCounts: boolean;
 	/** What folder counts measure: direct children or notes in the subtree. */
 	folderCountMode: FolderCountMode;
+	/** Show the theme's indent guide lines for nested folders. */
+	showIndentGuides: boolean;
+	/** Leader between item name and count (needs folder counts on). */
+	leaderStyle: LeaderStyle;
+	/** Extra spacing between root-level items, px. 0 = none. */
+	rootItemSpacing: number;
+	/** Indentation per nesting level, px. 0 = theme default. */
+	treeIndent: number;
+	/** Explorer row height, px. 0 = theme default. */
+	itemHeight: number;
+	/** Reduce text size when itemHeight is small. */
+	scaleTextWithHeight: boolean;
 }
 
 export type FolderCountMode = 'items' | 'notes';
 export const FOLDER_COUNT_MODES: readonly FolderCountMode[] = ['items', 'notes'];
+
+export type LeaderStyle = 'none' | 'dots' | 'dashes' | 'line';
+export const LEADER_STYLES: readonly LeaderStyle[] = ['none', 'dots', 'dashes', 'line'];
 
 export interface WayfinderData {
 	version: number;
@@ -41,6 +56,9 @@ export interface WayfinderData {
 export const SETTINGS_BOUNDS = {
 	tintStrength: { min: 0, max: 25 },
 	lineWidth: { min: 1, max: 3 },
+	rootItemSpacing: { min: 0, max: 24 },
+	treeIndent: { min: 8, max: 40 }, // 0 additionally allowed = theme default
+	itemHeight: { min: 20, max: 40 }, // 0 additionally allowed = theme default
 } as const;
 
 export const DEFAULT_SETTINGS: WayfinderSettings = {
@@ -50,6 +68,12 @@ export const DEFAULT_SETTINGS: WayfinderSettings = {
 	lineWidth: 2,
 	showFolderCounts: false,
 	folderCountMode: 'items',
+	showIndentGuides: true,
+	leaderStyle: 'none',
+	rootItemSpacing: 0,
+	treeIndent: 0,
+	itemHeight: 0,
+	scaleTextWithHeight: true,
 };
 
 export function defaultData(): WayfinderData {

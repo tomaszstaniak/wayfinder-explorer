@@ -4,6 +4,8 @@ import {
 	FileEntry,
 	FolderCountMode,
 	FolderEntry,
+	LEADER_STYLES,
+	LeaderStyle,
 	HEX_COLOR_RE,
 	SCHEMA_VERSION,
 	SETTINGS_BOUNDS,
@@ -68,6 +70,12 @@ function clampInt(v: unknown, min: number, max: number, fallback: number): numbe
 	return Math.min(max, Math.max(min, Math.round(v)));
 }
 
+/** Like clampInt, but 0 is a valid sentinel meaning "theme default". */
+function clampIntOrZero(v: unknown, min: number, max: number, fallback: number): number {
+	if (v === 0) return 0;
+	return clampInt(v, min, max, fallback);
+}
+
 function parseSettings(raw: unknown): WayfinderSettings {
 	const r = isRecord(raw) ? raw : {};
 	return {
@@ -96,6 +104,35 @@ function parseSettings(raw: unknown): WayfinderSettings {
 		folderCountMode: FOLDER_COUNT_MODES.includes(r.folderCountMode as FolderCountMode)
 			? (r.folderCountMode as FolderCountMode)
 			: DEFAULT_SETTINGS.folderCountMode,
+		showIndentGuides:
+			typeof r.showIndentGuides === 'boolean'
+				? r.showIndentGuides
+				: DEFAULT_SETTINGS.showIndentGuides,
+		leaderStyle: LEADER_STYLES.includes(r.leaderStyle as LeaderStyle)
+			? (r.leaderStyle as LeaderStyle)
+			: DEFAULT_SETTINGS.leaderStyle,
+		rootItemSpacing: clampInt(
+			r.rootItemSpacing,
+			SETTINGS_BOUNDS.rootItemSpacing.min,
+			SETTINGS_BOUNDS.rootItemSpacing.max,
+			DEFAULT_SETTINGS.rootItemSpacing
+		),
+		treeIndent: clampIntOrZero(
+			r.treeIndent,
+			SETTINGS_BOUNDS.treeIndent.min,
+			SETTINGS_BOUNDS.treeIndent.max,
+			DEFAULT_SETTINGS.treeIndent
+		),
+		itemHeight: clampIntOrZero(
+			r.itemHeight,
+			SETTINGS_BOUNDS.itemHeight.min,
+			SETTINGS_BOUNDS.itemHeight.max,
+			DEFAULT_SETTINGS.itemHeight
+		),
+		scaleTextWithHeight:
+			typeof r.scaleTextWithHeight === 'boolean'
+				? r.scaleTextWithHeight
+				: DEFAULT_SETTINGS.scaleTextWithHeight,
 	};
 }
 

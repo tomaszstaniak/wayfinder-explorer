@@ -80,6 +80,80 @@ export class WayfinderSettingTab extends PluginSettingTab {
 				);
 		}
 
+		new Setting(containerEl).setName('Appearance').setHeading();
+
+		new Setting(containerEl)
+			.setName('Show indent guides')
+			.setDesc('Display the theme’s indent guide lines for nested folders. Colored main lines always show.')
+			.addToggle((t) =>
+				t
+					.setValue(s.showIndentGuides)
+					.onChange((v) => this.store.updateSettings({ showIndentGuides: v }))
+			);
+
+		if (s.showFolderCounts) {
+			new Setting(containerEl)
+				.setName('Show leaders')
+				.setDesc('Display dots, dashes, or a line between item names and counts.')
+				.addDropdown((d) =>
+					d
+						.addOption('none', 'None')
+						.addOption('dots', 'Dots (…)')
+						.addOption('dashes', 'Dashes (---)')
+						.addOption('line', 'Line (—)')
+						.setValue(s.leaderStyle)
+						.onChange((v) =>
+							this.store.updateSettings({
+								leaderStyle: v === 'dots' || v === 'dashes' || v === 'line' ? v : 'none',
+							})
+						)
+				);
+		}
+
+		new Setting(containerEl)
+			.setName('Root item spacing')
+			.setDesc('Extra spacing between root-level items (pixels).')
+			.addSlider((sl) =>
+				sl
+					.setLimits(SETTINGS_BOUNDS.rootItemSpacing.min, SETTINGS_BOUNDS.rootItemSpacing.max, 1)
+					.setValue(s.rootItemSpacing)
+					.setDynamicTooltip()
+					.onChange((v) => this.store.updateSettings({ rootItemSpacing: v }))
+			);
+
+		new Setting(containerEl)
+			.setName('Tree indentation')
+			.setDesc('Indentation width for nested folders (pixels). Zero uses the theme default (16px).')
+			.addSlider((sl) =>
+				sl
+					.setLimits(0, SETTINGS_BOUNDS.treeIndent.max, 1)
+					.setValue(s.treeIndent)
+					.setDynamicTooltip()
+					.onChange((v) => this.store.updateSettings({ treeIndent: v }))
+			);
+
+		new Setting(containerEl)
+			.setName('Item height')
+			.setDesc('Height of explorer rows (pixels). Zero uses the theme default.')
+			.addSlider((sl) =>
+				sl
+					.setLimits(0, SETTINGS_BOUNDS.itemHeight.max, 1)
+					.setValue(s.itemHeight)
+					.setDynamicTooltip()
+					.onChange((v) => {
+						this.store.updateSettings({ itemHeight: v });
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Scale text with item height')
+			.setDesc('Reduce text size when item height is below the standard height.')
+			.addToggle((t) =>
+				t
+					.setValue(s.scaleTextWithHeight)
+					.onChange((v) => this.store.updateSettings({ scaleTextWithHeight: v }))
+			);
+
 		new Setting(containerEl)
 			.setName('Restore defaults')
 			.setDesc('Reset the options above. Folder colors and manual icons are not touched.')

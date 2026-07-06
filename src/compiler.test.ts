@@ -206,6 +206,78 @@ describe('compile: folder counts', () => {
 	});
 });
 
+describe('compile: appearance settings', () => {
+	it('emits no appearance rules at defaults', () => {
+		const { css } = compile(state(), fakeResolve);
+		expect(css).not.toContain('--nav-indentation-guide-width');
+		expect(css).not.toContain('margin-bottom:');
+		expect(css).not.toContain('--nav-item-children-margin-start');
+		expect(css).not.toContain('min-height:');
+	});
+
+	it('hides indent guides when disabled', () => {
+		const { css } = compile(
+			state({ settings: { ...defaultData().settings, showIndentGuides: false } }),
+			fakeResolve
+		);
+		expect(css).toContain('--nav-indentation-guide-width: 0px');
+	});
+
+	it('emits root spacing, indentation, and item height when set', () => {
+		const { css } = compile(
+			state({
+				settings: {
+					...defaultData().settings,
+					rootItemSpacing: 6,
+					treeIndent: 24,
+					itemHeight: 24,
+				},
+			}),
+			fakeResolve
+		);
+		expect(css).toContain('> .tree-item { margin-bottom: 6px; }');
+		expect(css).toContain('--nav-item-children-margin-start: 20px');
+		expect(css).toContain('min-height: 24px; padding-top: 3px; padding-bottom: 3px');
+		// 24 < 28 and scaleTextWithHeight defaults on -> font rule
+		expect(css).toContain('font-size: min(var(--nav-item-size), 11px)');
+	});
+
+	it('omits the font rule when scaling is off or height is large', () => {
+		const noScale = compile(
+			state({ settings: { ...defaultData().settings, itemHeight: 24, scaleTextWithHeight: false } }),
+			fakeResolve
+		);
+		expect(noScale.css).not.toContain('font-size: min(');
+		const tall = compile(
+			state({ settings: { ...defaultData().settings, itemHeight: 32 } }),
+			fakeResolve
+		);
+		expect(tall.css).not.toContain('font-size: min(');
+	});
+
+	it('emits leaders sized to stop before each count', () => {
+		const { css } = compile(
+			state({
+				settings: { ...defaultData().settings, showFolderCounts: true, leaderStyle: 'dots' },
+			}),
+			fakeResolve,
+			{ counts: new Map([['A', 7], ['B', 128]]) }
+		);
+		expect(css).toContain('repeating-linear-gradient');
+		expect(css).toContain('content: "7"; background-size: calc(100% - 3ch) 1px;');
+		expect(css).toContain('content: "128"; background-size: calc(100% - 5ch) 1px;');
+	});
+
+	it('emits no leader without counts enabled', () => {
+		const { css } = compile(
+			state({ settings: { ...defaultData().settings, leaderStyle: 'dots' } }),
+			fakeResolve,
+			{ counts: new Map([['A', 7]]) }
+		);
+		expect(css).not.toContain('repeating-linear-gradient');
+	});
+});
+
 describe('compile: content-detected icons', () => {
 	const contentIcons = new Map<string, readonly string[]>([
 		['Boards/roadmap.md', ['square-kanban', 'kanban']],
