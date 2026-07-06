@@ -225,10 +225,24 @@ export function compile(
 	// --- layer 2: default icons ------------------------------------------
 
 	if (state.settings.defaultFolderIcons) {
-		const uri = icon([FOLDER_ICON]);
+		const uri = icon([state.settings.defaultFolderIcon, FOLDER_ICON]);
 		if (uri) {
 			parts.push(`${SCOPE} .nav-folder-title-content::before { ${iconVars(uri)} }`);
 		}
+	}
+
+	// Subtree folder icons (childIcon): prefix selectors, so folders created
+	// later match without a recompile. Depth order lets nested scopes win;
+	// explicit per-folder icons in layer 4 win over these.
+	const childIconScopes = Object.entries(state.folders)
+		.filter(([, entry]) => entry.childIcon)
+		.sort(([a], [b]) => depthOf(a) - depthOf(b) || (a < b ? -1 : 1));
+	for (const [path, entry] of childIconScopes) {
+		const uri = icon([entry.childIcon as string]);
+		if (!uri) continue;
+		parts.push(
+			`${SCOPE} .nav-folder-title[data-path^="${escapeCssString(path)}/"] .nav-folder-title-content::before { ${iconVars(uri)} }`
+		);
 	}
 
 	if (state.settings.defaultFileIcons) {

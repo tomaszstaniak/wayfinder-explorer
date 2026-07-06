@@ -23,6 +23,12 @@ export interface FolderEntry {
 	 * Absent = follow the global setting.
 	 */
 	childColors?: ChildColorScheme;
+	/**
+	 * Default icon for every folder inside this one (existing and
+	 * future), cascading until a deeper childIcon or an explicit
+	 * per-folder icon overrides it.
+	 */
+	childIcon?: string;
 }
 
 export type Emphasis = 'dim' | 'normal';
@@ -70,6 +76,8 @@ export interface WayfinderSettings {
 	colorMode: ColorMode;
 	/** Global default for how subfolders of colored folders get colors. */
 	childColorScheme: ChildColorScheme;
+	/** Icon used for folders when nothing more specific applies. */
+	defaultFolderIcon: string;
 }
 
 export type FolderCountMode = 'items' | 'notes';
@@ -108,6 +116,7 @@ export const DEFAULT_SETTINGS: WayfinderSettings = {
 	scaleTextWithHeight: true,
 	colorMode: 'background',
 	childColorScheme: 'same',
+	defaultFolderIcon: 'folder',
 };
 
 export function defaultData(): WayfinderData {

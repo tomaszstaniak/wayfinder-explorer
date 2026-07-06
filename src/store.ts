@@ -73,6 +73,11 @@ function parseFolderEntry(raw: unknown): FolderEntry | null {
 			entry.childColors = raw.childColors as ChildColorScheme;
 		else return null;
 	}
+	if ('childIcon' in raw) {
+		const i = raw.childIcon;
+		if (typeof i === 'string' && i.trim() !== '') entry.childIcon = i.trim();
+		else return null;
+	}
 	return Object.keys(entry).length > 0 ? entry : null;
 }
 
@@ -158,6 +163,10 @@ function parseSettings(raw: unknown): WayfinderSettings {
 		childColorScheme: CHILD_COLOR_SCHEMES.includes(r.childColorScheme as ChildColorScheme)
 			? (r.childColorScheme as ChildColorScheme)
 			: DEFAULT_SETTINGS.childColorScheme,
+		defaultFolderIcon:
+			typeof r.defaultFolderIcon === 'string' && r.defaultFolderIcon.trim() !== ''
+				? r.defaultFolderIcon.trim()
+				: DEFAULT_SETTINGS.defaultFolderIcon,
 	};
 }
 
@@ -305,6 +314,23 @@ export class Store {
 		const rest: FolderEntry = { ...prev };
 		delete rest.color;
 		return this.putFolder(p, rest);
+	}
+
+	/** Set or clear (null) the default icon for folders in this subtree. */
+	setChildIcon(path: string, icon: string | null): boolean {
+		const p = normalizePath(path);
+		if (p === null) return false;
+		const prev = this.data.folders[p];
+		const next: FolderEntry = { ...prev };
+		if (icon === null) {
+			if (!prev || !('childIcon' in prev)) return false;
+			delete next.childIcon;
+		} else {
+			const i = icon.trim();
+			if (i === '') return false;
+			next.childIcon = i;
+		}
+		return this.putFolder(p, next);
 	}
 
 	/** Set or clear (null) how this folder's subfolders derive colors. */

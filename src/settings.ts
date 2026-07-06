@@ -1,4 +1,5 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
+import { IconPickerModal } from './icon-picker';
 import { Store } from './store';
 import { DEFAULT_SETTINGS, SETTINGS_BOUNDS } from './types';
 import type WayfinderPlugin from './main';
@@ -28,10 +29,31 @@ export class WayfinderSettingTab extends PluginSettingTab {
 			.setName('Default folder icons')
 			.setDesc('Show a folder icon on every folder. Manual icons always show.')
 			.addToggle((t) =>
-				t
-					.setValue(s.defaultFolderIcons)
-					.onChange((v) => this.store.updateSettings({ defaultFolderIcons: v }))
+				t.setValue(s.defaultFolderIcons).onChange((v) => {
+					this.store.updateSettings({ defaultFolderIcons: v });
+					this.display();
+				})
 			);
+
+		if (s.defaultFolderIcons) {
+			new Setting(containerEl)
+				.setName('Default folder icon')
+				.setDesc(`Currently: ${s.defaultFolderIcon}. Override per subtree via right-click → Wayfinder → Subfolder icon.`)
+				.addButton((b) =>
+					b.setButtonText('Choose…').onClick(() => {
+						new IconPickerModal(this.app, this.wayfinder.iconSource.ids(), (iconId) => {
+							this.store.updateSettings({ defaultFolderIcon: iconId });
+							this.display();
+						}).open();
+					})
+				)
+				.addButton((b) =>
+					b.setButtonText('Reset').onClick(() => {
+						this.store.updateSettings({ defaultFolderIcon: DEFAULT_SETTINGS.defaultFolderIcon });
+						this.display();
+					})
+				);
+		}
 
 		new Setting(containerEl)
 			.setName('Apply folder colors as')

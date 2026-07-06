@@ -320,6 +320,61 @@ describe('compile: content-detected icons', () => {
 	});
 });
 
+describe('compile: subtree folder icons (childIcon)', () => {
+	it('emits a prefix rule per childIcon scope, deeper scopes later', () => {
+		const { css } = compile(
+			state({
+				folders: {
+					P: { childIcon: 'target' },
+					'P/Sub': { childIcon: 'rocket' },
+				},
+			}),
+			fakeResolve
+		);
+		const outer = css.indexOf('[data-path^="P/"] .nav-folder-title-content::before');
+		const inner = css.indexOf('[data-path^="P/Sub/"] .nav-folder-title-content::before');
+		expect(outer).toBeGreaterThan(-1);
+		expect(inner).toBeGreaterThan(outer);
+		expect(css).toContain('data:fake/target');
+		expect(css).toContain('data:fake/rocket');
+	});
+
+	it('explicit folder icons are emitted after childIcon rules and win', () => {
+		const { css } = compile(
+			state({ folders: { P: { childIcon: 'target' }, 'P/Special': { icon: 'star' } } }),
+			fakeResolve
+		);
+		const childRule = css.indexOf('data:fake/target');
+		const explicit = css.indexOf('[data-path="P/Special"] .nav-folder-title-content::before');
+		expect(explicit).toBeGreaterThan(childRule);
+	});
+
+	it('applies even when default folder icons are disabled', () => {
+		const { css } = compile(
+			state({
+				folders: { P: { childIcon: 'target' } },
+				settings: { ...defaultData().settings, defaultFolderIcons: false },
+			}),
+			fakeResolve
+		);
+		expect(css).toContain('data:fake/target');
+	});
+
+	it('uses the configurable default folder icon with fallback', () => {
+		const { css } = compile(
+			state({ settings: { ...defaultData().settings, defaultFolderIcon: 'gone-fancy' } }),
+			fakeResolve
+		);
+		// unknown custom icon falls back to the stock folder icon
+		expect(css).toContain(`.nav-folder-title-content::before { --wf-icon: url("data:fake/folder")`);
+		const custom = compile(
+			state({ settings: { ...defaultData().settings, defaultFolderIcon: 'briefcase' } }),
+			fakeResolve
+		);
+		expect(custom.css).toContain('data:fake/briefcase');
+	});
+});
+
 describe('compile: child color schemes and color mode', () => {
 	const folderPaths = ['P', 'P/Alpha', 'P/Beta', 'P/Alpha/Deep', 'Other'];
 

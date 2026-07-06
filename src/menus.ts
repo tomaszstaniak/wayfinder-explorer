@@ -110,6 +110,27 @@ function buildItems(
 	const folderEntry = ctx.store.state.folders[target.path];
 	const localColor = folderEntry && 'color' in folderEntry ? folderEntry.color : undefined;
 
+	sub.addItem((i: MenuItem) =>
+		i
+			.setTitle(prefix + 'Subfolder icon…')
+			.setIcon('folder-cog')
+			.onClick(() => {
+				new IconPickerModal(ctx.app, ctx.iconSource.ids(), (iconId) => {
+					ctx.store.setChildIcon(target.path, iconId);
+				}).open();
+			})
+	);
+	if (folderEntry?.childIcon) {
+		sub.addItem((i: MenuItem) =>
+			i
+				.setTitle(prefix + 'Remove subfolder icon')
+				.setIcon('folder-x')
+				.onClick(() => {
+					ctx.store.setChildIcon(target.path, null);
+				})
+		);
+	}
+
 	sub.addSeparator();
 	for (const preset of PRESET_COLORS) {
 		sub.addItem((i: MenuItem) => {
