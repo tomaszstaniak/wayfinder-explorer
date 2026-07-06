@@ -47,6 +47,24 @@ export class WayfinderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName('Subfolder colors')
+			.setDesc('How subfolders of a colored folder get their colors. Same: inherit unchanged. Shades: same hue, varied lightness. Analogous: neighboring hues. Spread: maximally distinct hues. Override per folder via right-click → Wayfinder.')
+			.addDropdown((d) =>
+				d
+					.addOption('same', 'Same color')
+					.addOption('shades', 'Shades')
+					.addOption('analogous', 'Analogous hues')
+					.addOption('spread', 'Color spread')
+					.setValue(s.childColorScheme)
+					.onChange((v) =>
+						this.store.updateSettings({
+							childColorScheme:
+								v === 'shades' || v === 'analogous' || v === 'spread' ? v : 'same',
+						})
+					)
+			);
+
+		new Setting(containerEl)
 			.setName('Background tint strength')
 			.setDesc('How strongly a folder color washes over its contents (percent). Zero keeps the colored name and line without a background.')
 			.addSlider((sl) =>

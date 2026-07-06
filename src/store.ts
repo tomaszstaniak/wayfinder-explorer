@@ -155,6 +155,9 @@ function parseSettings(raw: unknown): WayfinderSettings {
 		colorMode: COLOR_MODES.includes(r.colorMode as ColorMode)
 			? (r.colorMode as ColorMode)
 			: DEFAULT_SETTINGS.colorMode,
+		childColorScheme: CHILD_COLOR_SCHEMES.includes(r.childColorScheme as ChildColorScheme)
+			? (r.childColorScheme as ChildColorScheme)
+			: DEFAULT_SETTINGS.childColorScheme,
 	};
 }
 

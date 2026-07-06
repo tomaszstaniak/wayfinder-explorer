@@ -135,8 +135,10 @@ function buildItems(
 	);
 
 	if (typeof localColor === 'string') {
+		const globalScheme = ctx.store.state.settings.childColorScheme;
 		const schemes: Array<{ value: ChildColorScheme | null; label: string }> = [
-			{ value: null, label: 'Subfolders: same color' },
+			{ value: null, label: `Subfolders: default (${globalScheme})` },
+			{ value: 'same', label: 'Subfolders: same color' },
 			{ value: 'shades', label: 'Subfolders: shades' },
 			{ value: 'analogous', label: 'Subfolders: analogous hues' },
 			{ value: 'spread', label: 'Subfolders: color spread' },

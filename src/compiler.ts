@@ -266,11 +266,13 @@ export function compile(
 
 	const scopeMap = new Map<string, string | null>();
 	for (const [path, entry] of Object.entries(state.folders)) {
-		if (!entry.childColors || typeof entry.color !== 'string' || !host.folderPaths) continue;
+		// Per-folder override, else the global default.
+		const scheme = entry.childColors ?? state.settings.childColorScheme;
+		if (scheme === 'same' || typeof entry.color !== 'string' || !host.folderPaths) continue;
 		const children = host.folderPaths
 			.filter((p) => p.startsWith(path + '/') && !p.slice(path.length + 1).includes('/'))
 			.sort();
-		const derived = deriveChildColors(entry.color, children.length, entry.childColors);
+		const derived = deriveChildColors(entry.color, children.length, scheme);
 		children.forEach((child, i) => scopeMap.set(child, derived[i] ?? entry.color ?? null));
 	}
 	for (const [path, entry] of Object.entries(state.folders)) {

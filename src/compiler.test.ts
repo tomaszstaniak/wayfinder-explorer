@@ -350,6 +350,22 @@ describe('compile: child color schemes and color mode', () => {
 		expect(css.match(/\[data-path="P\/Alpha"\], /g)).toHaveLength(1);
 	});
 
+	it('applies the global scheme to all colored folders, per-folder override wins', () => {
+		const { css } = compile(
+			state({
+				folders: {
+					P: { color: '#d96a4b' }, // follows global 'spread'
+					Q: { color: '#112233', childColors: 'same' }, // override back to same
+				},
+				settings: { ...defaultData().settings, childColorScheme: 'spread' },
+			}),
+			fakeResolve,
+			{ folderPaths: ['P', 'P/Alpha', 'Q', 'Q/Child'] }
+		);
+		expect(css).toContain('[data-path="P/Alpha"], [data-path^="P/Alpha/"]'); // derived
+		expect(css).not.toContain('[data-path="Q/Child"],'); // override: no derived scope
+	});
+
 	it('emits nothing derived without folderPaths', () => {
 		const { css } = compile(
 			state({ folders: { P: { color: '#d96a4b', childColors: 'spread' } } }),

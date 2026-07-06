@@ -18,8 +18,9 @@ export interface FolderEntry {
 	/** Render this folder's count in accent color when non-zero. */
 	countBadge?: boolean;
 	/**
-	 * How direct subfolders derive their colors from this folder's color.
-	 * Absent = they inherit it unchanged.
+	 * Per-folder override of settings.childColorScheme: how direct
+	 * subfolders derive their colors from this folder's color.
+	 * Absent = follow the global setting.
 	 */
 	childColors?: ChildColorScheme;
 }
@@ -27,8 +28,9 @@ export interface FolderEntry {
 export type Emphasis = 'dim' | 'normal';
 export const EMPHASIS_VALUES: readonly Emphasis[] = ['dim', 'normal'];
 
-export type ChildColorScheme = 'shades' | 'analogous' | 'spread';
+export type ChildColorScheme = 'same' | 'shades' | 'analogous' | 'spread';
 export const CHILD_COLOR_SCHEMES: readonly ChildColorScheme[] = [
+	'same',
 	'shades',
 	'analogous',
 	'spread',
@@ -66,6 +68,8 @@ export interface WayfinderSettings {
 	scaleTextWithHeight: boolean;
 	/** Whether folder colors paint row backgrounds or row text. */
 	colorMode: ColorMode;
+	/** Global default for how subfolders of colored folders get colors. */
+	childColorScheme: ChildColorScheme;
 }
 
 export type FolderCountMode = 'items' | 'notes';
@@ -103,6 +107,7 @@ export const DEFAULT_SETTINGS: WayfinderSettings = {
 	itemHeight: 0,
 	scaleTextWithHeight: true,
 	colorMode: 'background',
+	childColorScheme: 'same',
 };
 
 export function defaultData(): WayfinderData {

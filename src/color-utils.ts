@@ -55,6 +55,7 @@ function shadeOffset(i: number): number {
  * Derive `count` child colors from a base color.
  * Deterministic: same base, count, and scheme always yield the same list.
  *
+ * - same:      every child keeps the base color
  * - shades:    monochromatic — same hue, children fan out in lightness
  * - analogous: neighboring hues, total spread capped at ±60°
  * - spread:    golden-angle rotation — maximally distinct hues
@@ -64,6 +65,7 @@ export function deriveChildColors(
 	count: number,
 	scheme: ChildColorScheme
 ): string[] {
+	if (scheme === 'same') return new Array<string>(count).fill(base);
 	const { h, s, l } = hexToHsl(base);
 	const out: string[] = [];
 	for (let i = 0; i < count; i++) {
