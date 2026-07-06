@@ -17,10 +17,25 @@ export interface FolderEntry {
 	emphasis?: Emphasis;
 	/** Render this folder's count in accent color when non-zero. */
 	countBadge?: boolean;
+	/**
+	 * How direct subfolders derive their colors from this folder's color.
+	 * Absent = they inherit it unchanged.
+	 */
+	childColors?: ChildColorScheme;
 }
 
 export type Emphasis = 'dim' | 'normal';
 export const EMPHASIS_VALUES: readonly Emphasis[] = ['dim', 'normal'];
+
+export type ChildColorScheme = 'shades' | 'analogous' | 'spread';
+export const CHILD_COLOR_SCHEMES: readonly ChildColorScheme[] = [
+	'shades',
+	'analogous',
+	'spread',
+];
+
+export type ColorMode = 'background' | 'text';
+export const COLOR_MODES: readonly ColorMode[] = ['background', 'text'];
 
 export interface FileEntry {
 	icon?: string;
@@ -49,6 +64,8 @@ export interface WayfinderSettings {
 	itemHeight: number;
 	/** Reduce text size when itemHeight is small. */
 	scaleTextWithHeight: boolean;
+	/** Whether folder colors paint row backgrounds or row text. */
+	colorMode: ColorMode;
 }
 
 export type FolderCountMode = 'items' | 'notes';
@@ -85,6 +102,7 @@ export const DEFAULT_SETTINGS: WayfinderSettings = {
 	treeIndent: 0,
 	itemHeight: 0,
 	scaleTextWithHeight: true,
+	colorMode: 'background',
 };
 
 export function defaultData(): WayfinderData {

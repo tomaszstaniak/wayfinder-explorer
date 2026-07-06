@@ -15,7 +15,13 @@ Notion's or VS Code's sidebars are — with zero configuration.
    Colors cascade; any descendant folder can override with its own color or
    opt out entirely ("No color for this subtree").
 
-4. **Emphasis and badges.** Any folder can be *dimmed* (archive style:
+4. **Subfolder color schemes.** A colored folder can derive its direct
+   subfolders' colors automatically: **shades** (same hue, stepped
+   lightness), **analogous** (neighboring hues), or **spread**
+   (golden-angle rotation — maximally distinct). Explicit child colors
+   always win. And globally, folder colors can render as a **background
+   wash** or as **text color** (Settings → "Apply folder colors as").
+5. **Emphasis and badges.** Any folder can be *dimmed* (archive style:
    desaturated, reduced opacity, cascades with a per-subtree opt-out), and
    any folder can show a *count badge* — its item count in accent color
    whenever it's non-empty (an inbox pressure gauge).

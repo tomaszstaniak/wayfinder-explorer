@@ -34,6 +34,19 @@ export class WayfinderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName('Apply folder colors as')
+			.setDesc('Background: a soft wash behind the folder’s contents. Text: the contents’ names take the color instead.')
+			.addDropdown((d) =>
+				d
+					.addOption('background', 'Background wash')
+					.addOption('text', 'Text color')
+					.setValue(s.colorMode)
+					.onChange((v) =>
+						this.store.updateSettings({ colorMode: v === 'text' ? 'text' : 'background' })
+					)
+			);
+
+		new Setting(containerEl)
 			.setName('Background tint strength')
 			.setDesc('How strongly a folder color washes over its contents (percent). Zero keeps the colored name and line without a background.')
 			.addSlider((sl) =>

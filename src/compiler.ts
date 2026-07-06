@@ -1,3 +1,4 @@
+import { deriveChildColors } from './color-utils';
 import { escapeCssString } from './escape';
 import { FILE_FALLBACK_ICON, FOLDER_ICON, SUFFIX_ICONS } from './icons';
 import { WayfinderData } from './types';
@@ -75,6 +76,8 @@ export type ContentIcons = ReadonlyMap<string, readonly string[]>;
 export interface HostData {
 	counts?: FolderCounts;
 	contentIcons?: ContentIcons;
+	/** All folder paths in the vault; needed for child color schemes. */
+	folderPaths?: readonly string[];
 }
 
 const LEADER_GRADIENTS: Record<string, string> = {
@@ -258,20 +261,43 @@ export function compile(
 	}
 
 	// --- layer 3: folder color scopes, shallowest first -------------------
+	// Explicit scopes from the store, plus scopes derived for direct
+	// subfolders of any folder with a child color scheme. Explicit wins.
 
-	const scopes = Object.entries(state.folders)
-		.filter(([, entry]) => 'color' in entry)
-		.sort(([a], [b]) => depthOf(a) - depthOf(b) || (a < b ? -1 : 1));
+	const scopeMap = new Map<string, string | null>();
+	for (const [path, entry] of Object.entries(state.folders)) {
+		if (!entry.childColors || typeof entry.color !== 'string' || !host.folderPaths) continue;
+		const children = host.folderPaths
+			.filter((p) => p.startsWith(path + '/') && !p.slice(path.length + 1).includes('/'))
+			.sort();
+		const derived = deriveChildColors(entry.color, children.length, entry.childColors);
+		children.forEach((child, i) => scopeMap.set(child, derived[i] ?? entry.color ?? null));
+	}
+	for (const [path, entry] of Object.entries(state.folders)) {
+		if ('color' in entry) scopeMap.set(path, entry.color ?? null);
+	}
 
-	for (const [path, entry] of scopes) {
+	const textMode = state.settings.colorMode === 'text';
+	const scopes = [...scopeMap.entries()].sort(
+		([a], [b]) => depthOf(a) - depthOf(b) || (a < b ? -1 : 1)
+	);
+
+	for (const [path, color] of scopes) {
 		const esc = escapeCssString(path);
-		const color = entry.color;
-		if (color === null || color === undefined) {
-			// Explicit opt-out: neutralize the ancestor wash on this subtree.
-			parts.push(`${rowsOfScope(esc)} { background-color: transparent; }`);
+		if (color === null) {
+			// Explicit opt-out: neutralize the ancestor scope on this subtree.
+			parts.push(
+				textMode
+					? `${rowsOfScope(esc)} { color: var(--nav-item-color); }`
+					: `${rowsOfScope(esc)} { background-color: transparent; }`
+			);
 			continue;
 		}
-		if (state.settings.tintStrength > 0) {
+		if (textMode) {
+			parts.push(
+				`${rowsOfScope(esc)} { color: color-mix(in srgb, ${color} 70%, var(--text-normal)); }`
+			);
+		} else if (state.settings.tintStrength > 0) {
 			parts.push(
 				`${rowsOfScope(esc)} { background-color: color-mix(in srgb, ${color} ${state.settings.tintStrength}%, transparent); }`
 			);

@@ -320,6 +320,60 @@ describe('compile: content-detected icons', () => {
 	});
 });
 
+describe('compile: child color schemes and color mode', () => {
+	const folderPaths = ['P', 'P/Alpha', 'P/Beta', 'P/Alpha/Deep', 'Other'];
+
+	it('derives scopes for direct subfolders only, deterministically', () => {
+		const s = state({ folders: { P: { color: '#d96a4b', childColors: 'spread' } } });
+		const a = compile(s, fakeResolve, { folderPaths });
+		const b = compile(s, fakeResolve, { folderPaths: [...folderPaths].reverse() });
+		expect(a.css).toBe(b.css);
+		expect(a.css).toContain('[data-path="P/Alpha"], [data-path^="P/Alpha/"]');
+		expect(a.css).toContain('[data-path="P/Beta"], [data-path^="P/Beta/"]');
+		expect(a.css).not.toContain('[data-path="P/Alpha/Deep"],'); // not a direct child
+		expect(a.css).not.toContain('[data-path="Other"],');
+	});
+
+	it('lets an explicit child assignment beat the derived color', () => {
+		const { css } = compile(
+			state({
+				folders: {
+					P: { color: '#d96a4b', childColors: 'shades' },
+					'P/Alpha': { color: '#112233' },
+				},
+			}),
+			fakeResolve,
+			{ folderPaths }
+		);
+		expect(css).toContain('#112233');
+		// exactly one scope rule-set for P/Alpha (the explicit one)
+		expect(css.match(/\[data-path="P\/Alpha"\], /g)).toHaveLength(1);
+	});
+
+	it('emits nothing derived without folderPaths', () => {
+		const { css } = compile(
+			state({ folders: { P: { color: '#d96a4b', childColors: 'spread' } } }),
+			fakeResolve
+		);
+		expect(css).not.toContain('[data-path="P/Alpha"');
+	});
+
+	it('text mode colors names instead of backgrounds', () => {
+		const { css } = compile(
+			state({
+				folders: { A: { color: '#112233' }, 'A/B': { color: null } },
+				settings: { ...defaultData().settings, colorMode: 'text' },
+			}),
+			fakeResolve
+		);
+		expect(css).toContain('color: color-mix(in srgb, #112233 70%, var(--text-normal));');
+		expect(css).not.toContain('background-color: color-mix');
+		// opt-out restores theme text color instead of clearing a background
+		expect(css).toContain('{ color: var(--nav-item-color); }');
+		expect(css).not.toContain('background-color: transparent');
+	});
+});
+
 describe('compile: emphasis and count badges', () => {
 	it('dims a subtree and lets a nested normal reset it', () => {
 		const { css } = compile(

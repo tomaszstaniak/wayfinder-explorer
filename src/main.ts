@@ -107,6 +107,12 @@ export default class WayfinderPlugin extends Plugin {
 		const host: HostData = {};
 		if (this.needsCounts()) host.counts = this.folderCounts();
 		if (this.contentIcons.size > 0) host.contentIcons = this.contentIcons;
+		if (Object.values(this.store.state.folders).some((e) => e.childColors)) {
+			host.folderPaths = this.app.vault
+				.getAllLoadedFiles()
+				.filter((f): f is TFolder => f instanceof TFolder && f.path !== '/')
+				.map((f) => f.path);
+		}
 		return host;
 	}
 

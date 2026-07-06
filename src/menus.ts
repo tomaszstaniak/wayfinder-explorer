@@ -1,4 +1,5 @@
 import { App, Menu, MenuItem, TAbstractFile, TFile, TFolder } from 'obsidian';
+import { ChildColorScheme } from './types';
 import { ColorPickerModal } from './color-picker';
 import { IconPickerModal } from './icon-picker';
 import { IconSource } from './icons';
@@ -132,6 +133,24 @@ function buildItems(
 				).open();
 			})
 	);
+
+	if (typeof localColor === 'string') {
+		const schemes: Array<{ value: ChildColorScheme | null; label: string }> = [
+			{ value: null, label: 'Subfolders: same color' },
+			{ value: 'shades', label: 'Subfolders: shades' },
+			{ value: 'analogous', label: 'Subfolders: analogous hues' },
+			{ value: 'spread', label: 'Subfolders: color spread' },
+		];
+		const current = folderEntry?.childColors ?? null;
+		for (const scheme of schemes) {
+			sub.addItem((i: MenuItem) => {
+				i.setTitle(prefix + scheme.label).onClick(() => {
+					ctx.store.setChildColors(target.path, scheme.value);
+				});
+				if (current === scheme.value) i.setChecked(true);
+			});
+		}
+	}
 
 	sub.addSeparator();
 	const localEmphasis = folderEntry?.emphasis;

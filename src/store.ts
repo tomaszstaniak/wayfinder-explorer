@@ -1,4 +1,8 @@
 import {
+	CHILD_COLOR_SCHEMES,
+	COLOR_MODES,
+	ChildColorScheme,
+	ColorMode,
 	DEFAULT_SETTINGS,
 	FOLDER_COUNT_MODES,
 	FileEntry,
@@ -63,6 +67,11 @@ function parseFolderEntry(raw: unknown): FolderEntry | null {
 	if ('countBadge' in raw) {
 		if (raw.countBadge === true) entry.countBadge = true;
 		else return null; // false is stored as an absent property
+	}
+	if ('childColors' in raw) {
+		if (CHILD_COLOR_SCHEMES.includes(raw.childColors as ChildColorScheme))
+			entry.childColors = raw.childColors as ChildColorScheme;
+		else return null;
 	}
 	return Object.keys(entry).length > 0 ? entry : null;
 }
@@ -143,6 +152,9 @@ function parseSettings(raw: unknown): WayfinderSettings {
 			typeof r.scaleTextWithHeight === 'boolean'
 				? r.scaleTextWithHeight
 				: DEFAULT_SETTINGS.scaleTextWithHeight,
+		colorMode: COLOR_MODES.includes(r.colorMode as ColorMode)
+			? (r.colorMode as ColorMode)
+			: DEFAULT_SETTINGS.colorMode,
 	};
 }
 
@@ -290,6 +302,21 @@ export class Store {
 		const rest: FolderEntry = { ...prev };
 		delete rest.color;
 		return this.putFolder(p, rest);
+	}
+
+	/** Set or clear (null) how this folder's subfolders derive colors. */
+	setChildColors(path: string, scheme: ChildColorScheme | null): boolean {
+		const p = normalizePath(path);
+		if (p === null) return false;
+		const prev = this.data.folders[p];
+		const next: FolderEntry = { ...prev };
+		if (scheme === null) {
+			if (!prev || !('childColors' in prev)) return false;
+			delete next.childColors;
+		} else {
+			next.childColors = scheme;
+		}
+		return this.putFolder(p, next);
 	}
 
 	/** Set or clear (null) the folder's emphasis level. */
