@@ -6,10 +6,10 @@ import type WayfinderPlugin from './main';
 export class WayfinderSettingTab extends PluginSettingTab {
 	constructor(
 		app: App,
-		plugin: WayfinderPlugin,
+		private readonly wayfinder: WayfinderPlugin,
 		private readonly store: Store
 	) {
-		super(app, plugin);
+		super(app, wayfinder);
 	}
 
 	display(): void {
@@ -79,6 +79,17 @@ export class WayfinderSettingTab extends PluginSettingTab {
 						)
 				);
 		}
+
+		new Setting(containerEl).setName('Presets').setHeading();
+
+		new Setting(containerEl)
+			.setName('PARA preset')
+			.setDesc(
+				'Detect PARA root folders (Inbox, Projects, Areas, Resources, Archive — numbered or not) and apply colors along the actionability gradient, icons, archive dimming, and an inbox count badge. Shows a preview before changing anything; every assignment stays editable per folder afterwards.'
+			)
+			.addButton((b) =>
+				b.setButtonText('Detect and apply…').onClick(() => this.wayfinder.openParaPreset())
+			);
 
 		new Setting(containerEl).setName('Appearance').setHeading();
 
