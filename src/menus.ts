@@ -105,6 +105,27 @@ function buildItems(
 				})
 		);
 	}
+	const kind = isFolder ? ('folder' as const) : ('file' as const);
+	sub.addItem((i: MenuItem) =>
+		i
+			.setTitle(prefix + 'Icon color…')
+			.setIcon('brush')
+			.onClick(() => {
+				new ColorPickerModal(ctx.app, entry?.iconColor ?? null, (color) => {
+					ctx.store.setIconColor(kind, target.path, color);
+				}).open();
+			})
+	);
+	if (entry?.iconColor) {
+		sub.addItem((i: MenuItem) =>
+			i
+				.setTitle(prefix + 'Remove icon color')
+				.setIcon('eraser')
+				.onClick(() => {
+					ctx.store.setIconColor(kind, target.path, null);
+				})
+		);
+	}
 
 	if (!isFolder) return;
 	const folderEntry = ctx.store.state.folders[target.path];

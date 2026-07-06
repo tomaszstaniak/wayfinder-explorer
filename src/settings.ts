@@ -24,7 +24,34 @@ export class WayfinderSettingTab extends PluginSettingTab {
 			.setName('Default file icons')
 			.setDesc('Show a contextual icon for every file, based on its type (note, PDF, image, …). Manual icons always show.')
 			.addToggle((t) =>
-				t.setValue(s.defaultFileIcons).onChange((v) => this.store.updateSettings({ defaultFileIcons: v }))
+				t.setValue(s.defaultFileIcons).onChange((v) => {
+					this.store.updateSettings({ defaultFileIcons: v });
+					this.display();
+				})
+			);
+
+		if (s.defaultFileIcons) {
+			new Setting(containerEl)
+				.setName('Empty note icons')
+				.setDesc('Show a blank-sheet icon for notes without content, so unfilled notes stand out.')
+				.addToggle((t) =>
+					t
+						.setValue(s.emptyFileIcons)
+						.onChange((v) => this.store.updateSettings({ emptyFileIcons: v }))
+				);
+		}
+
+		new Setting(containerEl)
+			.setName('Icon color')
+			.setDesc('Follow text: icons match the item’s text color. Follow folder color: icons take their folder scope’s color. A per-item icon color (right-click → Wayfinder) always wins.')
+			.addDropdown((d) =>
+				d
+					.addOption('text', 'Follow text color')
+					.addOption('folder', 'Follow folder color')
+					.setValue(s.iconColorSource)
+					.onChange((v) =>
+						this.store.updateSettings({ iconColorSource: v === 'folder' ? 'folder' : 'text' })
+					)
 			);
 
 		new Setting(containerEl)
@@ -265,6 +292,7 @@ export class WayfinderSettingTab extends PluginSettingTab {
 			else if (entry.color) parts.push(`color ${entry.color}`);
 			if (entry.icon) parts.push(`icon ${entry.icon}`);
 			if (entry.childIcon) parts.push(`subfolder icon ${entry.childIcon}`);
+			if (entry.iconColor) parts.push(`icon color ${entry.iconColor}`);
 			if (entry.childColors) parts.push(`subfolders ${entry.childColors}`);
 			if (entry.emphasis) parts.push(entry.emphasis === 'dim' ? 'dimmed' : 'keep normal');
 			if (entry.countBadge) parts.push('count badge');

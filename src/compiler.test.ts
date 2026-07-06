@@ -445,6 +445,69 @@ describe('compile: child color schemes and color mode', () => {
 	});
 });
 
+describe('compile: icon colors and empty notes', () => {
+	it('paints icons via the icon-color variable', () => {
+		const { css } = compile(state(), fakeResolve);
+		expect(css).toContain('background-color: var(--wf-icon-color, currentColor);');
+	});
+
+	it('sets scope icon color when source is folder, with opt-out reset', () => {
+		const { css } = compile(
+			state({
+				folders: { A: { color: '#112233' }, 'A/B': { color: null } },
+				settings: { ...defaultData().settings, iconColorSource: 'folder' },
+			}),
+			fakeResolve
+		);
+		expect(css).toContain('{ --wf-icon-color: #112233; }');
+		expect(css).toContain('{ --wf-icon-color: currentColor; }');
+	});
+
+	it('does not emit scope icon colors in text source mode', () => {
+		const { css } = compile(state({ folders: { A: { color: '#112233' } } }), fakeResolve);
+		expect(css).not.toContain('--wf-icon-color: #112233');
+	});
+
+	it('emits explicit per-item icon colors after scope rules so they win', () => {
+		const { css } = compile(
+			state({
+				folders: { A: { color: '#112233' }, 'A/B': { iconColor: '#ff0000' } },
+				files: { 'A/n.md': { iconColor: '#00ff00' } },
+				settings: { ...defaultData().settings, iconColorSource: 'folder' },
+			}),
+			fakeResolve
+		);
+		const scope = css.indexOf('--wf-icon-color: #112233');
+		const folderItem = css.indexOf('.nav-folder-title[data-path="A/B"] { --wf-icon-color: #ff0000; }');
+		const fileItem = css.indexOf('.nav-file-title[data-path="A/n.md"] { --wf-icon-color: #00ff00; }');
+		expect(folderItem).toBeGreaterThan(scope);
+		expect(fileItem).toBeGreaterThan(scope);
+	});
+
+	it('gives empty notes the blank-sheet icon, beaten by manual icons', () => {
+		const { css } = compile(
+			state({ files: { 'special.md': { icon: 'star' } } }),
+			fakeResolve,
+			{ emptyFiles: ['empty.md', 'special.md'] }
+		);
+		const emptyRule = css.indexOf('[data-path="empty.md"] .nav-file-title-content::before');
+		expect(emptyRule).toBeGreaterThan(-1);
+		const specialEmpty = css.indexOf('[data-path="special.md"] .nav-file-title-content::before');
+		const manual = css.lastIndexOf('[data-path="special.md"] .nav-file-title-content::before');
+		expect(manual).toBeGreaterThan(specialEmpty); // manual rule emitted later, wins
+		expect(css.slice(manual)).toContain('data:fake/star');
+	});
+
+	it('omits empty-note rules when the setting is off', () => {
+		const { css } = compile(
+			state({ settings: { ...defaultData().settings, emptyFileIcons: false } }),
+			fakeResolve,
+			{ emptyFiles: ['empty.md'] }
+		);
+		expect(css).not.toContain('[data-path="empty.md"]');
+	});
+});
+
 describe('compile: emphasis and count badges', () => {
 	it('dims a subtree and lets a nested normal reset it', () => {
 		const { css } = compile(

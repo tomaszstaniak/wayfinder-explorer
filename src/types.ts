@@ -29,6 +29,8 @@ export interface FolderEntry {
 	 * per-folder icon overrides it.
 	 */
 	childIcon?: string;
+	/** Explicit icon color; absent = follow settings.iconColorSource. */
+	iconColor?: string;
 }
 
 export type Emphasis = 'dim' | 'normal';
@@ -47,6 +49,8 @@ export const COLOR_MODES: readonly ColorMode[] = ['background', 'text'];
 
 export interface FileEntry {
 	icon?: string;
+	/** Explicit icon color; absent = follow settings.iconColorSource. */
+	iconColor?: string;
 }
 
 export interface WayfinderSettings {
@@ -78,7 +82,14 @@ export interface WayfinderSettings {
 	childColorScheme: ChildColorScheme;
 	/** Icon used for folders when nothing more specific applies. */
 	defaultFolderIcon: string;
+	/** What icons are tinted with when no explicit icon color is set. */
+	iconColorSource: IconColorSource;
+	/** Give empty notes a blank-sheet icon instead of the note icon. */
+	emptyFileIcons: boolean;
 }
+
+export type IconColorSource = 'text' | 'folder';
+export const ICON_COLOR_SOURCES: readonly IconColorSource[] = ['text', 'folder'];
 
 export type FolderCountMode = 'items' | 'notes';
 export const FOLDER_COUNT_MODES: readonly FolderCountMode[] = ['items', 'notes'];
@@ -117,6 +128,8 @@ export const DEFAULT_SETTINGS: WayfinderSettings = {
 	colorMode: 'background',
 	childColorScheme: 'same',
 	defaultFolderIcon: 'folder',
+	iconColorSource: 'text',
+	emptyFileIcons: true,
 };
 
 export function defaultData(): WayfinderData {

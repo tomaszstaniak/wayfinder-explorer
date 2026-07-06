@@ -10,6 +10,8 @@ import {
 	Emphasis,
 	FolderCountMode,
 	FolderEntry,
+	ICON_COLOR_SOURCES,
+	IconColorSource,
 	LEADER_STYLES,
 	LeaderStyle,
 	HEX_COLOR_RE,
@@ -78,15 +80,28 @@ function parseFolderEntry(raw: unknown): FolderEntry | null {
 		if (typeof i === 'string' && i.trim() !== '') entry.childIcon = i.trim();
 		else return null;
 	}
+	if ('iconColor' in raw) {
+		const c = raw.iconColor;
+		if (typeof c === 'string' && HEX_COLOR_RE.test(c)) entry.iconColor = c.toLowerCase();
+		else return null;
+	}
 	return Object.keys(entry).length > 0 ? entry : null;
 }
 
 function parseFileEntry(raw: unknown): FileEntry | null {
 	if (!isRecord(raw)) return null;
-	if (!('icon' in raw)) return null;
-	const i = raw.icon;
-	if (typeof i === 'string' && i.trim() !== '') return { icon: i.trim() };
-	return null;
+	const entry: FileEntry = {};
+	if ('icon' in raw) {
+		const i = raw.icon;
+		if (typeof i === 'string' && i.trim() !== '') entry.icon = i.trim();
+		else return null;
+	}
+	if ('iconColor' in raw) {
+		const c = raw.iconColor;
+		if (typeof c === 'string' && HEX_COLOR_RE.test(c)) entry.iconColor = c.toLowerCase();
+		else return null;
+	}
+	return Object.keys(entry).length > 0 ? entry : null;
 }
 
 function clampInt(v: unknown, min: number, max: number, fallback: number): number {
@@ -167,6 +182,11 @@ function parseSettings(raw: unknown): WayfinderSettings {
 			typeof r.defaultFolderIcon === 'string' && r.defaultFolderIcon.trim() !== ''
 				? r.defaultFolderIcon.trim()
 				: DEFAULT_SETTINGS.defaultFolderIcon,
+		iconColorSource: ICON_COLOR_SOURCES.includes(r.iconColorSource as IconColorSource)
+			? (r.iconColorSource as IconColorSource)
+			: DEFAULT_SETTINGS.iconColorSource,
+		emptyFileIcons:
+			typeof r.emptyFileIcons === 'boolean' ? r.emptyFileIcons : DEFAULT_SETTINGS.emptyFileIcons,
 	};
 }
 
@@ -314,6 +334,34 @@ export class Store {
 		const rest: FolderEntry = { ...prev };
 		delete rest.color;
 		return this.putFolder(p, rest);
+	}
+
+	/** Set or clear (null) an explicit icon color. */
+	setIconColor(kind: 'folder' | 'file', path: string, color: string | null): boolean {
+		const p = normalizePath(path);
+		if (p === null) return false;
+		if (color !== null && !HEX_COLOR_RE.test(color)) return false;
+		if (kind === 'folder') {
+			const prev = this.data.folders[p];
+			const next: FolderEntry = { ...prev };
+			if (color === null) {
+				if (!prev || !('iconColor' in prev)) return false;
+				delete next.iconColor;
+			} else next.iconColor = color.toLowerCase();
+			return this.putFolder(p, next);
+		}
+		const prev = this.data.files[p];
+		const next: FileEntry = { ...prev };
+		if (color === null) {
+			if (!prev || !('iconColor' in prev)) return false;
+			delete next.iconColor;
+		} else next.iconColor = color.toLowerCase();
+		const files = { ...this.data.files };
+		if (Object.keys(next).length === 0) delete files[p];
+		else files[p] = next;
+		this.data = { ...this.data, files };
+		this.commit();
+		return true;
 	}
 
 	/** Remove every rule for exactly this folder (descendants untouched). */

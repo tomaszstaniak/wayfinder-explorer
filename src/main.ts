@@ -16,6 +16,8 @@ export default class WayfinderPlugin extends Plugin {
 	controller!: Controller;
 	/** path -> icon candidates, from frontmatter detection. */
 	private contentIcons = new Map<string, readonly string[]>();
+	/** Paths of zero-byte notes. */
+	private emptyFiles = new Set<string>();
 
 	async onload() {
 		this.styleManager = new StyleManager(document);
@@ -48,6 +50,10 @@ export default class WayfinderPlugin extends Plugin {
 			this.app.vault.on('rename', (file, oldPath) => {
 				this.controller.handleRename(oldPath, file.path);
 				if (this.contentIcons.delete(oldPath)) this.updateContentIcons(file);
+				if (this.emptyFiles.delete(oldPath)) {
+					this.emptyFiles.add(file.path);
+					this.controller.requestRecompile();
+				}
 				this.countsChanged();
 			})
 		);
@@ -55,15 +61,27 @@ export default class WayfinderPlugin extends Plugin {
 			this.app.vault.on('delete', (file) => {
 				this.controller.handleDelete(file.path);
 				if (this.contentIcons.delete(file.path)) this.controller.requestRecompile();
+				if (this.emptyFiles.delete(file.path)) this.controller.requestRecompile();
 				this.countsChanged();
 			})
 		);
-		this.registerEvent(this.app.vault.on('create', () => this.countsChanged()));
+		this.registerEvent(
+			this.app.vault.on('create', (file) => {
+				this.updateEmptyFile(file);
+				this.countsChanged();
+			})
+		);
+		this.registerEvent(this.app.vault.on('modify', (file) => this.updateEmptyFile(file)));
 		this.registerEvent(
 			this.app.metadataCache.on('changed', (file) => this.updateContentIcons(file))
 		);
 		// Initial scan once all metadata is indexed (also fires on startup).
-		this.registerEvent(this.app.metadataCache.on('resolved', () => this.scanContentIcons()));
+		this.registerEvent(
+			this.app.metadataCache.on('resolved', () => {
+				this.scanContentIcons();
+				this.scanEmptyFiles();
+			})
+		);
 		this.addCommand({
 			id: 'apply-para-preset',
 			name: 'Apply PARA preset to detected root folders',
@@ -116,7 +134,34 @@ export default class WayfinderPlugin extends Plugin {
 				.filter((f): f is TFolder => f instanceof TFolder && f.path !== '/')
 				.map((f) => f.path);
 		}
+		if (this.store.state.settings.emptyFileIcons && this.emptyFiles.size > 0) {
+			host.emptyFiles = [...this.emptyFiles];
+		}
 		return host;
+	}
+
+	private isEmptyNote(file: unknown): file is TFile {
+		return file instanceof TFile && file.extension === 'md' && file.stat.size === 0;
+	}
+
+	private updateEmptyFile(file: unknown): void {
+		if (!(file instanceof TFile) || file.extension !== 'md') return;
+		const empty = file.stat.size === 0;
+		if (empty === this.emptyFiles.has(file.path)) return;
+		if (empty) this.emptyFiles.add(file.path);
+		else this.emptyFiles.delete(file.path);
+		this.controller.requestRecompile();
+	}
+
+	private scanEmptyFiles(): void {
+		const next = new Set<string>();
+		for (const file of this.app.vault.getMarkdownFiles()) {
+			if (this.isEmptyNote(file)) next.add(file.path);
+		}
+		const changed =
+			next.size !== this.emptyFiles.size || [...next].some((p) => !this.emptyFiles.has(p));
+		this.emptyFiles = next;
+		if (changed) this.controller.requestRecompile();
 	}
 
 	/** Counts per folder: direct children, or notes in the whole subtree. */

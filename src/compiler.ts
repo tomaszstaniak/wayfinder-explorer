@@ -46,7 +46,7 @@ function staticBlock(): string {
 		`\tmargin-inline-end: var(--size-2-2, 4px);`,
 		`\tvertical-align: text-bottom;`,
 		`\tflex-shrink: 0;`,
-		`\tbackground-color: currentColor;`,
+		`\tbackground-color: var(--wf-icon-color, currentColor);`,
 		`\t-webkit-mask-repeat: no-repeat;`,
 		`\tmask-repeat: no-repeat;`,
 		`\t-webkit-mask-size: contain;`,
@@ -78,6 +78,16 @@ export interface HostData {
 	contentIcons?: ContentIcons;
 	/** All folder paths in the vault; needed for child color schemes. */
 	folderPaths?: readonly string[];
+	/** Paths of zero-byte notes; they get the blank-sheet icon. */
+	emptyFiles?: readonly string[];
+}
+
+/** Scope rows without the state guard (for inherited variables). */
+function rowsOfScopeRaw(escaped: string): string {
+	return (
+		`${SCOPE} :is(.nav-folder-title, .nav-file-title)` +
+		`:is([data-path="${escaped}"], [data-path^="${escaped}/"])`
+	);
 }
 
 const LEADER_GRADIENTS: Record<string, string> = {
@@ -260,6 +270,19 @@ export function compile(
 		}
 	}
 
+	// --- layer 2a': empty notes get the blank-sheet icon -------------------
+
+	if (state.settings.defaultFileIcons && state.settings.emptyFileIcons && host.emptyFiles) {
+		const uri = icon([FILE_FALLBACK_ICON]);
+		if (uri) {
+			for (const path of [...host.emptyFiles].sort()) {
+				parts.push(
+					`${SCOPE} .nav-file-title[data-path="${escapeCssString(path)}"] .nav-file-title-content::before { ${iconVars(uri)} }`
+				);
+			}
+		}
+	}
+
 	// --- layer 2b: content-detected icons (beat suffix defaults by emission
 	// order; manual overrides in layer 4 still win) -------------------------
 
@@ -307,7 +330,13 @@ export function compile(
 					? `${rowsOfScope(esc)} { color: var(--nav-item-color); }`
 					: `${rowsOfScope(esc)} { background-color: transparent; }`
 			);
+			if (state.settings.iconColorSource === 'folder') {
+				parts.push(`${rowsOfScopeRaw(esc)} { --wf-icon-color: currentColor; }`);
+			}
 			continue;
+		}
+		if (state.settings.iconColorSource === 'folder') {
+			parts.push(`${rowsOfScopeRaw(esc)} { --wf-icon-color: ${color}; }`);
 		}
 		if (textMode) {
 			parts.push(
@@ -329,25 +358,39 @@ export function compile(
 	// --- layer 4: manual icon overrides (win over defaults) ---------------
 
 	const folderIcons = Object.entries(state.folders)
-		.filter(([, entry]) => entry.icon)
+		.filter(([, entry]) => entry.icon || entry.iconColor)
 		.sort(([a], [b]) => (a < b ? -1 : 1));
 	for (const [path, entry] of folderIcons) {
-		const uri = icon([entry.icon as string]);
-		if (!uri) continue;
-		parts.push(
-			`${SCOPE} .nav-folder-title[data-path="${escapeCssString(path)}"] .nav-folder-title-content::before { ${iconVars(uri)} }`
-		);
+		const esc = escapeCssString(path);
+		if (entry.icon) {
+			const uri = icon([entry.icon]);
+			if (uri) {
+				parts.push(
+					`${SCOPE} .nav-folder-title[data-path="${esc}"] .nav-folder-title-content::before { ${iconVars(uri)} }`
+				);
+			}
+		}
+		if (entry.iconColor) {
+			parts.push(`${SCOPE} .nav-folder-title[data-path="${esc}"] { --wf-icon-color: ${entry.iconColor}; }`);
+		}
 	}
 
 	const fileIcons = Object.entries(state.files)
-		.filter(([, entry]) => entry.icon)
+		.filter(([, entry]) => entry.icon || entry.iconColor)
 		.sort(([a], [b]) => (a < b ? -1 : 1));
 	for (const [path, entry] of fileIcons) {
-		const uri = icon([entry.icon as string]);
-		if (!uri) continue;
-		parts.push(
-			`${SCOPE} .nav-file-title[data-path="${escapeCssString(path)}"] .nav-file-title-content::before { ${iconVars(uri)} }`
-		);
+		const esc = escapeCssString(path);
+		if (entry.icon) {
+			const uri = icon([entry.icon]);
+			if (uri) {
+				parts.push(
+					`${SCOPE} .nav-file-title[data-path="${esc}"] .nav-file-title-content::before { ${iconVars(uri)} }`
+				);
+			}
+		}
+		if (entry.iconColor) {
+			parts.push(`${SCOPE} .nav-file-title[data-path="${esc}"] { --wf-icon-color: ${entry.iconColor}; }`);
+		}
 	}
 
 	return { css: parts.join('\n'), missingIcons: [...missing].sort() };
