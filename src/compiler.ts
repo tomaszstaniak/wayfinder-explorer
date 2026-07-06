@@ -63,6 +63,19 @@ function depthOf(path: string): number {
 	return path.split('/').length;
 }
 
+/**
+ * Color of the nearest ancestor folder scope for a path, or null when
+ * the nearest scope is an opt-out or there is none. Used by the edit blink.
+ */
+function effectiveScopeColor(path: string, scopeMap: Map<string, string | null>): string | null {
+	const parts = path.split('/');
+	for (let i = parts.length - 1; i > 0; i--) {
+		const ancestor = parts.slice(0, i).join('/');
+		if (scopeMap.has(ancestor)) return scopeMap.get(ancestor) ?? null;
+	}
+	return null;
+}
+
 /** Direct child counts per folder path; provided by the host, not persisted. */
 export type FolderCounts = ReadonlyMap<string, number>;
 
@@ -398,11 +411,25 @@ export function compile(
 	// --- layer 5: transient editing indicator (wins over everything) ------
 
 	if (state.settings.editingIndicator && host.editingFile) {
+		const esc = escapeCssString(host.editingFile);
 		const uri = icon([state.settings.editingIcon]);
 		if (uri) {
 			parts.push(
-				`${SCOPE} .nav-file-title[data-path="${escapeCssString(host.editingFile)}"] .nav-file-title-content::before { ${iconVars(uri)} }`
+				`${SCOPE} .nav-file-title[data-path="${esc}"] .nav-file-title-content::before { ${iconVars(uri)} }`
 			);
+		}
+		// One-shot color pulse. The active row's normal wash is suppressed,
+		// so the animation paints its own background in the scope color.
+		if (state.settings.editingBlink) {
+			const blinkColor = effectiveScopeColor(host.editingFile, scopeMap);
+			if (blinkColor) {
+				parts.push(
+					`@keyframes wf-edit-blink { 0% { background-color: transparent; } 30% { background-color: color-mix(in srgb, ${blinkColor} 55%, transparent); } 100% { background-color: transparent; } }`
+				);
+				parts.push(
+					`${SCOPE} .nav-file-title[data-path="${esc}"] { animation: wf-edit-blink 0.7s ease-out; }`
+				);
+			}
 		}
 	}
 

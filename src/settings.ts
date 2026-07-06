@@ -69,6 +69,15 @@ export class WayfinderSettingTab extends PluginSettingTab {
 						this.display();
 					})
 				);
+
+			new Setting(containerEl)
+				.setName('Blink on edit')
+				.setDesc('Pulse the note’s row once in its folder color when you start editing. Needs the note to sit under a colored folder.')
+				.addToggle((t) =>
+					t
+						.setValue(s.editingBlink)
+						.onChange((v) => this.store.updateSettings({ editingBlink: v }))
+				);
 		}
 
 		new Setting(containerEl)

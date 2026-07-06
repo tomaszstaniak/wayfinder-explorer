@@ -90,6 +90,8 @@ export interface WayfinderSettings {
 	editingIndicator: boolean;
 	/** Icon shown on the note currently being edited. */
 	editingIcon: string;
+	/** Pulse the row's scope color once when editing begins. */
+	editingBlink: boolean;
 }
 
 export type IconColorSource = 'text' | 'folder';
@@ -136,6 +138,7 @@ export const DEFAULT_SETTINGS: WayfinderSettings = {
 	emptyFileIcons: true,
 	editingIndicator: false,
 	editingIcon: 'pencil',
+	editingBlink: true,
 };
 
 export function defaultData(): WayfinderData {

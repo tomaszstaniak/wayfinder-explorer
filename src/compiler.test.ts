@@ -522,6 +522,40 @@ describe('compile: icon colors and empty notes', () => {
 		expect(editing).toBeGreaterThan(manual);
 	});
 
+	it('blinks the scope color once when editing under a colored folder', () => {
+		const { css } = compile(
+			state({
+				folders: { Projects: { color: '#d96a4b' } },
+				settings: { ...defaultData().settings, editingIndicator: true, editingBlink: true },
+			}),
+			fakeResolve,
+			{ editingFile: 'Projects/note.md' }
+		);
+		expect(css).toContain('@keyframes wf-edit-blink');
+		expect(css).toContain('color-mix(in srgb, #d96a4b 55%, transparent)');
+		expect(css).toContain(
+			'.nav-file-title[data-path="Projects/note.md"] { animation: wf-edit-blink 0.7s ease-out; }'
+		);
+	});
+
+	it('does not blink a note with no colored ancestor, or when blink is off', () => {
+		const uncolored = compile(
+			state({ settings: { ...defaultData().settings, editingIndicator: true, editingBlink: true } }),
+			fakeResolve,
+			{ editingFile: 'loose.md' }
+		);
+		expect(uncolored.css).not.toContain('wf-edit-blink');
+		const off = compile(
+			state({
+				folders: { Projects: { color: '#d96a4b' } },
+				settings: { ...defaultData().settings, editingIndicator: true, editingBlink: false },
+			}),
+			fakeResolve,
+			{ editingFile: 'Projects/note.md' }
+		);
+		expect(off.css).not.toContain('wf-edit-blink');
+	});
+
 	it('emits no editing rule when the indicator is off or no file is editing', () => {
 		expect(
 			compile(

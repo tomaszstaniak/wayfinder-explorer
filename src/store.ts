@@ -195,6 +195,8 @@ function parseSettings(raw: unknown): WayfinderSettings {
 			typeof r.editingIcon === 'string' && r.editingIcon.trim() !== ''
 				? r.editingIcon.trim()
 				: DEFAULT_SETTINGS.editingIcon,
+		editingBlink:
+			typeof r.editingBlink === 'boolean' ? r.editingBlink : DEFAULT_SETTINGS.editingBlink,
 	};
 }
 
