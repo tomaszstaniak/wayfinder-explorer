@@ -15,9 +15,24 @@ Notion's or VS Code's sidebars are — with zero configuration.
    Colors cascade; any descendant folder can override with its own color or
    opt out entirely ("No color for this subtree").
 
+4. **Emphasis and badges.** Any folder can be *dimmed* (archive style:
+   desaturated, reduced opacity, cascades with a per-subtree opt-out), and
+   any folder can show a *count badge* — its item count in accent color
+   whenever it's non-empty (an inbox pressure gauge).
+
 Assignments survive renames and moves. Everything is theme-aware (icons use
 `currentColor`; washes are `color-mix` over transparency) and works in light
 and dark mode.
+
+## PARA preset
+
+If you organize with the PARA method, run **"Wayfinder: Apply PARA preset"**
+from the command palette. It detects your root folders by name — numbered or
+not ("01 Projects", "Projects", "Archived" all work) — shows what it found,
+and on confirmation assigns colors along the **actionability gradient**:
+Projects most saturated, Areas medium, Resources low, Archive dimmed and
+colorless, Inbox with a count badge. It writes ordinary Wayfinder
+assignments: adjust or undo any of it from the folder context menu.
 
 ## How it works
 

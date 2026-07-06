@@ -2,6 +2,8 @@ import {
 	DEFAULT_SETTINGS,
 	FOLDER_COUNT_MODES,
 	FileEntry,
+	EMPHASIS_VALUES,
+	Emphasis,
 	FolderCountMode,
 	FolderEntry,
 	LEADER_STYLES,
@@ -53,6 +55,14 @@ function parseFolderEntry(raw: unknown): FolderEntry | null {
 		const i = raw.icon;
 		if (typeof i === 'string' && i.trim() !== '') entry.icon = i.trim();
 		else return null;
+	}
+	if ('emphasis' in raw) {
+		if (EMPHASIS_VALUES.includes(raw.emphasis as Emphasis)) entry.emphasis = raw.emphasis as Emphasis;
+		else return null;
+	}
+	if ('countBadge' in raw) {
+		if (raw.countBadge === true) entry.countBadge = true;
+		else return null; // false is stored as an absent property
 	}
 	return Object.keys(entry).length > 0 ? entry : null;
 }
@@ -280,6 +290,41 @@ export class Store {
 		const rest: FolderEntry = { ...prev };
 		delete rest.color;
 		return this.putFolder(p, rest);
+	}
+
+	/** Set or clear (null) the folder's emphasis level. */
+	setFolderEmphasis(path: string, emphasis: Emphasis | null): boolean {
+		const p = normalizePath(path);
+		if (p === null) return false;
+		const prev = this.data.folders[p];
+		const next: FolderEntry = { ...prev };
+		if (emphasis === null) {
+			if (!prev || !('emphasis' in prev)) return false;
+			delete next.emphasis;
+		} else {
+			next.emphasis = emphasis;
+		}
+		return this.putFolder(p, next);
+	}
+
+	setFolderCountBadge(path: string, on: boolean): boolean {
+		const p = normalizePath(path);
+		if (p === null) return false;
+		const prev = this.data.folders[p];
+		const next: FolderEntry = { ...prev };
+		if (on) next.countBadge = true;
+		else {
+			if (!prev?.countBadge) return false;
+			delete next.countBadge;
+		}
+		return this.putFolder(p, next);
+	}
+
+	/** Merge a preset entry into a folder (used by the PARA command). */
+	applyPresetEntry(path: string, entry: FolderEntry): boolean {
+		const p = normalizePath(path);
+		if (p === null) return false;
+		return this.putFolder(p, { ...this.data.folders[p], ...entry });
 	}
 
 	setFolderIcon(path: string, icon: string): boolean {

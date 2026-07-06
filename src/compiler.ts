@@ -83,7 +83,7 @@ const LEADER_GRADIENTS: Record<string, string> = {
 	line: 'linear-gradient(var(--wf-leader-color), var(--wf-leader-color))',
 };
 
-function countsBlock(counts: FolderCounts, settings: WayfinderData['settings']): string {
+function countsBaseBlock(settings: WayfinderData['settings']): string {
 	const leader = LEADER_GRADIENTS[settings.leaderStyle];
 	const parts: string[] = [
 		`${SCOPE} .nav-folder-title::after {`,
@@ -104,6 +104,12 @@ function countsBlock(counts: FolderCounts, settings: WayfinderData['settings']):
 			: []),
 		`}`,
 	];
+	return parts.join('\n');
+}
+
+function countRules(counts: FolderCounts, settings: WayfinderData['settings']): string[] {
+	const leader = LEADER_GRADIENTS[settings.leaderStyle];
+	const parts: string[] = [];
 	const sorted = [...counts.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
 	for (const [path, count] of sorted) {
 		// The leader stops before the number: the compiler knows the count's
@@ -115,7 +121,41 @@ function countsBlock(counts: FolderCounts, settings: WayfinderData['settings']):
 			`${SCOPE} .nav-folder-title[data-path="${escapeCssString(path)}"]::after { content: "${count}";${leaderSize} }`
 		);
 	}
-	return parts.join('\n');
+	return parts;
+}
+
+/** Accent styling (and standalone count) for non-empty badge folders. */
+function badgeRules(state: WayfinderData, counts: FolderCounts): string[] {
+	const parts: string[] = [];
+	const badgePaths = Object.entries(state.folders)
+		.filter(([, entry]) => entry.countBadge)
+		.map(([path]) => path)
+		.sort();
+	for (const path of badgePaths) {
+		const count = counts.get(path) ?? 0;
+		if (count === 0) continue;
+		parts.push(
+			`${SCOPE} .nav-folder-title[data-path="${escapeCssString(path)}"]::after { content: "${count}"; color: var(--color-accent, var(--interactive-accent)); font-weight: var(--font-semibold, 600); background-image: none; }`
+		);
+	}
+	return parts;
+}
+
+/** Emphasis scopes (dim/normal), depth-ordered like color scopes. */
+function emphasisRules(state: WayfinderData): string[] {
+	const parts: string[] = [];
+	const scopes = Object.entries(state.folders)
+		.filter(([, entry]) => entry.emphasis)
+		.sort(([a], [b]) => depthOf(a) - depthOf(b) || (a < b ? -1 : 1));
+	for (const [path, entry] of scopes) {
+		const rows = rowsOfScope(escapeCssString(path));
+		if (entry.emphasis === 'dim') {
+			parts.push(`${rows} { opacity: 0.6; filter: saturate(0.35); }`);
+		} else {
+			parts.push(`${rows} { opacity: 1; filter: none; }`);
+		}
+	}
+	return parts;
 }
 
 /** Layout adjustments; emits nothing while every setting is at its default. */
@@ -170,9 +210,14 @@ export function compile(
 	parts.push(staticBlock());
 	parts.push(...appearanceBlock(state.settings));
 
-	if (state.settings.showFolderCounts && counts) {
-		parts.push(countsBlock(counts, state.settings));
+	const hasBadges = Object.values(state.folders).some((e) => e.countBadge);
+	if (counts && (state.settings.showFolderCounts || hasBadges)) {
+		parts.push(countsBaseBlock(state.settings));
+		if (state.settings.showFolderCounts) parts.push(...countRules(counts, state.settings));
+		parts.push(...badgeRules(state, counts));
 	}
+
+	parts.push(...emphasisRules(state));
 
 	// --- layer 2: default icons ------------------------------------------
 

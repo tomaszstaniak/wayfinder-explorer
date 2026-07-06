@@ -320,6 +320,47 @@ describe('compile: content-detected icons', () => {
 	});
 });
 
+describe('compile: emphasis and count badges', () => {
+	it('dims a subtree and lets a nested normal reset it', () => {
+		const { css } = compile(
+			state({ folders: { Archive: { emphasis: 'dim' }, 'Archive/Active': { emphasis: 'normal' } } }),
+			fakeResolve
+		);
+		const dim = css.indexOf('opacity: 0.6; filter: saturate(0.35);');
+		const reset = css.indexOf('opacity: 1; filter: none;');
+		expect(dim).toBeGreaterThan(-1);
+		expect(reset).toBeGreaterThan(dim); // deeper scope emitted later, wins
+		expect(css).toContain('[data-path="Archive"], [data-path^="Archive/"]');
+	});
+
+	it('renders a badge count in accent even when global counts are off', () => {
+		const { css } = compile(
+			state({ folders: { Inbox: { countBadge: true } } }),
+			fakeResolve,
+			{ counts: new Map([['Inbox', 3], ['Other', 9]]) }
+		);
+		expect(css).toContain('[data-path="Inbox"]::after { content: "3"; color: var(--color-accent');
+		expect(css).not.toContain('content: "9"'); // global counts off
+		expect(css).toContain('font-family: var(--font-monospace);'); // base block present
+	});
+
+	it('hides the badge at zero and overrides the muted count when both are on', () => {
+		const { css } = compile(
+			state({
+				folders: { Inbox: { countBadge: true }, Empty: { countBadge: true } },
+				settings: { ...defaultData().settings, showFolderCounts: true },
+			}),
+			fakeResolve,
+			{ counts: new Map([['Inbox', 3], ['Empty', 0]]) }
+		);
+		const muted = css.indexOf('[data-path="Inbox"]::after { content: "3"; }');
+		const accent = css.indexOf('[data-path="Inbox"]::after { content: "3"; color: var(--color-accent');
+		expect(muted).toBeGreaterThan(-1);
+		expect(accent).toBeGreaterThan(muted); // badge rule wins by order
+		expect(css).not.toContain('[data-path="Empty"]::after { content: "0"; color:');
+	});
+});
+
 describe('compile: performance guard', () => {
 	it('compiles 500 color roots and 1000 icon overrides quickly', () => {
 		const folders: WayfinderData['folders'] = {};

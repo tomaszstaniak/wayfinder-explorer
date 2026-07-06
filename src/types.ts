@@ -9,7 +9,18 @@ export const SCHEMA_VERSION = 1;
 export interface FolderEntry {
 	color?: string | null;
 	icon?: string;
+	/**
+	 * 'dim'    -> subtree renders de-emphasized (archive style)
+	 * 'normal' -> explicit reset under a dimmed ancestor
+	 * absent   -> inherit
+	 */
+	emphasis?: Emphasis;
+	/** Render this folder's count in accent color when non-zero. */
+	countBadge?: boolean;
 }
+
+export type Emphasis = 'dim' | 'normal';
+export const EMPHASIS_VALUES: readonly Emphasis[] = ['dim', 'normal'];
 
 export interface FileEntry {
 	icon?: string;

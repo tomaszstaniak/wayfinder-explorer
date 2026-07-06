@@ -42,6 +42,17 @@ export interface MenuContext {
 	iconSource: IconSource;
 }
 
+/** True when the nearest ancestor with an emphasis setting says 'dim'. */
+function isUnderDimScope(store: Store, path: string): boolean {
+	const parts = path.split('/');
+	for (let i = parts.length - 1; i > 0; i--) {
+		const ancestor = parts.slice(0, i).join('/');
+		const emphasis = store.state.folders[ancestor]?.emphasis;
+		if (emphasis) return emphasis === 'dim';
+	}
+	return false;
+}
+
 /** Adds the Wayfinder submenu to the explorer's file context menu. */
 export function addWayfinderMenu(menu: Menu, target: TAbstractFile, ctx: MenuContext): void {
 	const isFolder = target instanceof TFolder;
@@ -119,6 +130,57 @@ function buildItems(
 						ctx.store.setFolderColor(target.path, color);
 					}
 				).open();
+			})
+	);
+
+	sub.addSeparator();
+	const localEmphasis = folderEntry?.emphasis;
+	if (localEmphasis === 'dim') {
+		sub.addItem((i: MenuItem) =>
+			i
+				.setTitle(prefix + 'Remove dimming')
+				.setIcon('sun')
+				.onClick(() => {
+					ctx.store.setFolderEmphasis(target.path, null);
+				})
+		);
+	} else {
+		sub.addItem((i: MenuItem) =>
+			i
+				.setTitle(prefix + 'Dim (archive style)')
+				.setIcon('moon')
+				.onClick(() => {
+					ctx.store.setFolderEmphasis(target.path, 'dim');
+				})
+		);
+		if (localEmphasis === 'normal') {
+			sub.addItem((i: MenuItem) =>
+				i
+					.setTitle(prefix + 'Remove keep-normal')
+					.setIcon('rotate-ccw')
+					.onClick(() => {
+						ctx.store.setFolderEmphasis(target.path, null);
+					})
+			);
+		} else if (isUnderDimScope(ctx.store, target.path)) {
+			sub.addItem((i: MenuItem) =>
+				i
+					.setTitle(prefix + 'Keep normal (undim this subtree)')
+					.setIcon('sun')
+					.onClick(() => {
+						ctx.store.setFolderEmphasis(target.path, 'normal');
+					})
+			);
+		}
+	}
+	sub.addItem((i: MenuItem) =>
+		i
+			.setTitle(
+				prefix + (folderEntry?.countBadge ? 'Remove count badge' : 'Count badge when non-empty')
+			)
+			.setIcon('bell')
+			.onClick(() => {
+				ctx.store.setFolderCountBadge(target.path, !folderEntry?.countBadge);
 			})
 	);
 

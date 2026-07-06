@@ -3,6 +3,8 @@ import { FolderCounts, HostData } from './compiler';
 import { Controller } from './controller';
 import { FRONTMATTER_ICONS, IconResolver, IconSource } from './icons';
 import { addWayfinderMenu } from './menus';
+import { detectParaRoots, paraAssignments } from './para';
+import { ParaPresetModal } from './para-modal';
 import { WayfinderSettingTab } from './settings';
 import { Store } from './store';
 import { StyleManager } from './style-manager';
@@ -62,6 +64,11 @@ export default class WayfinderPlugin extends Plugin {
 		);
 		// Initial scan once all metadata is indexed (also fires on startup).
 		this.registerEvent(this.app.metadataCache.on('resolved', () => this.scanContentIcons()));
+		this.addCommand({
+			id: 'apply-para-preset',
+			name: 'Apply PARA preset to detected root folders',
+			callback: () => this.openParaPreset(),
+		});
 		this.registerEvent(
 			this.app.workspace.on('file-menu', (menu, file) => {
 				addWayfinderMenu(menu, file, {
@@ -77,9 +84,28 @@ export default class WayfinderPlugin extends Plugin {
 		this.styleManager.unmount();
 	}
 
+	openParaPreset(): void {
+		const roots = this.app.vault
+			.getRoot()
+			.children.filter((c): c is TFolder => c instanceof TFolder)
+			.map((f) => f.path);
+		const assignments = paraAssignments(detectParaRoots(roots));
+		new ParaPresetModal(this.app, assignments, (confirmed) => {
+			for (const a of confirmed) this.store.applyPresetEntry(a.path, a.entry);
+			new Notice(`Wayfinder: PARA preset applied to ${confirmed.length} folder(s).`);
+		}).open();
+	}
+
+	private needsCounts(): boolean {
+		return (
+			this.store.state.settings.showFolderCounts ||
+			Object.values(this.store.state.folders).some((e) => e.countBadge)
+		);
+	}
+
 	private hostData(): HostData {
 		const host: HostData = {};
-		if (this.store.state.settings.showFolderCounts) host.counts = this.folderCounts();
+		if (this.needsCounts()) host.counts = this.folderCounts();
 		if (this.contentIcons.size > 0) host.contentIcons = this.contentIcons;
 		return host;
 	}
@@ -104,7 +130,7 @@ export default class WayfinderPlugin extends Plugin {
 	}
 
 	private countsChanged(): void {
-		if (this.store.state.settings.showFolderCounts) this.controller.requestRecompile();
+		if (this.needsCounts()) this.controller.requestRecompile();
 	}
 
 	/** Frontmatter keys that mark special content types (Kanban, …). */

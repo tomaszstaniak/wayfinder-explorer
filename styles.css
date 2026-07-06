@@ -30,3 +30,11 @@
 	border: 1px solid var(--background-modifier-border);
 	margin-bottom: var(--size-4-3);
 }
+
+.wayfinder-para-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	font-family: var(--font-monospace);
+	font-size: var(--font-smallest);
+}

@@ -125,6 +125,25 @@ describe('parseData', () => {
 		expect(bogus.data.settings.folderCountMode).toBe('items');
 	});
 
+	it('validates emphasis and countBadge on folder entries', () => {
+		const r = parseData({
+			version: 1,
+			folders: {
+				a: { emphasis: 'dim' },
+				b: { emphasis: 'normal', icon: 'x' },
+				c: { emphasis: 'loud' },
+				d: { countBadge: true },
+				e: { countBadge: false },
+			},
+		});
+		expect(r.data.folders).toEqual({
+			a: { emphasis: 'dim' },
+			b: { emphasis: 'normal', icon: 'x' },
+			d: { countBadge: true },
+		});
+		expect(r.warnings).toHaveLength(2); // c, e
+	});
+
 	it('drops file entries without a valid icon', () => {
 		const r = parseData({ version: 1, files: { 'a.md': { icon: 'star' }, 'b.md': {} } });
 		expect(r.data.files).toEqual({ 'a.md': { icon: 'star' } });
@@ -167,6 +186,27 @@ describe('Store mutations', () => {
 		expect(store.state.folders['A']).toEqual({ icon: 'gem' });
 		store.removeFolderIcon('A');
 		expect(store.state.folders['A']).toBeUndefined();
+	});
+
+	it('manages emphasis, count badges, and preset merging', async () => {
+		const { store } = await makeStore();
+		expect(store.setFolderEmphasis('A', 'dim')).toBe(true);
+		expect(store.state.folders['A']).toEqual({ emphasis: 'dim' });
+		expect(store.setFolderEmphasis('A/B', 'normal')).toBe(true);
+		expect(store.setFolderEmphasis('A/B', null)).toBe(true);
+		expect(store.state.folders['A/B']).toBeUndefined();
+		expect(store.setFolderEmphasis('A/B', null)).toBe(false);
+
+		expect(store.setFolderCountBadge('Inbox', true)).toBe(true);
+		expect(store.state.folders['Inbox']).toEqual({ countBadge: true });
+		expect(store.setFolderCountBadge('Inbox', false)).toBe(true);
+		expect(store.state.folders['Inbox']).toBeUndefined();
+		expect(store.setFolderCountBadge('Inbox', false)).toBe(false);
+
+		// preset merge keeps existing props it doesn't set
+		store.setFolderIcon('P', 'star');
+		expect(store.applyPresetEntry('P', { color: '#d96a4b', icon: 'target' })).toBe(true);
+		expect(store.state.folders['P']).toEqual({ color: '#d96a4b', icon: 'target' });
 	});
 
 	it('manages file icons', async () => {
