@@ -1,4 +1,6 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
+import { ColorPickerModal } from './color-picker';
+import { FolderSuggestModal } from './folder-suggest';
 import { IconPickerModal } from './icon-picker';
 import { Store } from './store';
 import { DEFAULT_SETTINGS, SETTINGS_BOUNDS } from './types';
@@ -133,6 +135,8 @@ export class WayfinderSettingTab extends PluginSettingTab {
 				);
 		}
 
+		this.displayFolderRules(containerEl);
+
 		new Setting(containerEl).setName('Presets').setHeading();
 
 		new Setting(containerEl)
@@ -220,12 +224,115 @@ export class WayfinderSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Restore defaults')
-			.setDesc('Reset the options above. Folder colors and manual icons are not touched.')
+			.setDesc('Reset the options above. Folder rules are not touched.')
 			.addButton((b) =>
 				b.setButtonText('Restore').onClick(() => {
 					this.store.updateSettings({ ...DEFAULT_SETTINGS });
 					this.display();
 				})
 			);
+	}
+
+	/** Everything Wayfinder is doing per folder, editable in one place. */
+	private displayFolderRules(containerEl: HTMLElement): void {
+		new Setting(containerEl).setName('Folder rules').setHeading();
+
+		const entries = Object.entries(this.store.state.folders).sort(([a], [b]) =>
+			a.localeCompare(b)
+		);
+
+		new Setting(containerEl)
+			.setName('Add folder rule')
+			.setDesc(
+				entries.length === 0
+					? 'No folder rules yet. Add one here, use the PARA preset below, or right-click a folder in the explorer.'
+					: 'Rules can also be edited by right-clicking a folder in the explorer.'
+			)
+			.addButton((b) =>
+				b.setButtonText('Add folder…').onClick(() => {
+					new FolderSuggestModal(this.app, (folder) => {
+						new ColorPickerModal(this.app, null, (color) => {
+							this.store.setFolderColor(folder.path, color);
+							this.display();
+						}).open();
+					}).open();
+				})
+			);
+
+		for (const [path, entry] of entries) {
+			const parts: string[] = [];
+			if (entry.color === null) parts.push('no color (opt-out)');
+			else if (entry.color) parts.push(`color ${entry.color}`);
+			if (entry.icon) parts.push(`icon ${entry.icon}`);
+			if (entry.childIcon) parts.push(`subfolder icon ${entry.childIcon}`);
+			if (entry.childColors) parts.push(`subfolders ${entry.childColors}`);
+			if (entry.emphasis) parts.push(entry.emphasis === 'dim' ? 'dimmed' : 'keep normal');
+			if (entry.countBadge) parts.push('count badge');
+
+			const row = new Setting(containerEl).setName(path).setDesc(parts.join(' · '));
+			if (typeof entry.color === 'string') row.nameEl.style.color = entry.color;
+
+			row
+				.addExtraButton((b) =>
+					b
+						.setIcon('palette')
+						.setTooltip('Color')
+						.onClick(() => {
+							new ColorPickerModal(this.app, entry.color ?? null, (color) => {
+								this.store.setFolderColor(path, color);
+								this.display();
+							}).open();
+						})
+				)
+				.addExtraButton((b) =>
+					b
+						.setIcon('image-plus')
+						.setTooltip('Icon')
+						.onClick(() => {
+							new IconPickerModal(this.app, this.wayfinder.iconSource.ids(), (iconId) => {
+								this.store.setFolderIcon(path, iconId);
+								this.display();
+							}).open();
+						})
+				)
+				.addExtraButton((b) =>
+					b
+						.setIcon('folder-cog')
+						.setTooltip('Subfolder icon')
+						.onClick(() => {
+							new IconPickerModal(this.app, this.wayfinder.iconSource.ids(), (iconId) => {
+								this.store.setChildIcon(path, iconId);
+								this.display();
+							}).open();
+						})
+				)
+				.addExtraButton((b) =>
+					b
+						.setIcon(entry.emphasis === 'dim' ? 'sun' : 'moon')
+						.setTooltip(entry.emphasis === 'dim' ? 'Remove dimming' : 'Dim (archive style)')
+						.onClick(() => {
+							this.store.setFolderEmphasis(path, entry.emphasis === 'dim' ? null : 'dim');
+							this.display();
+						})
+				)
+				.addExtraButton((b) =>
+					b
+						.setIcon('bell')
+						.setTooltip(entry.countBadge ? 'Remove count badge' : 'Count badge when non-empty')
+						.onClick(() => {
+							this.store.setFolderCountBadge(path, !entry.countBadge);
+							this.display();
+						})
+				)
+				.addExtraButton((b) =>
+					b
+						.setIcon('trash-2')
+						.setTooltip('Remove all rules for this folder')
+						.onClick(() => {
+							this.store.clearFolder(path);
+							this.display();
+						})
+				);
+		}
 	}
 }

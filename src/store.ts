@@ -316,6 +316,17 @@ export class Store {
 		return this.putFolder(p, rest);
 	}
 
+	/** Remove every rule for exactly this folder (descendants untouched). */
+	clearFolder(path: string): boolean {
+		const p = normalizePath(path);
+		if (p === null || !(p in this.data.folders)) return false;
+		const folders = { ...this.data.folders };
+		delete folders[p];
+		this.data = { ...this.data, folders };
+		this.commit();
+		return true;
+	}
+
 	/** Set or clear (null) the default icon for folders in this subtree. */
 	setChildIcon(path: string, icon: string | null): boolean {
 		const p = normalizePath(path);
