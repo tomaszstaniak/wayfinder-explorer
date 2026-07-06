@@ -3,7 +3,7 @@ import { escapeCssString } from './escape';
 
 describe('escapeCssString', () => {
 	it('passes plain paths through', () => {
-		expect(escapeCssString('01 Projects/Velvet Ledger')).toBe('01 Projects/Velvet Ledger');
+		expect(escapeCssString('01 Projects/Example Project')).toBe('01 Projects/Example Project');
 	});
 	it('escapes double quotes', () => {
 		expect(escapeCssString('say "hi"')).toBe('say \\"hi\\"');
