@@ -82,7 +82,7 @@ function countsBlock(counts: FolderCounts): string {
 		`${SCOPE} .nav-folder-title::after {`,
 		`\tfont-family: var(--font-monospace);`,
 		`\tfont-size: var(--font-smallest, 0.8em);`,
-		`\tcolor: var(--text-faint);`,
+		`\tcolor: var(--text-muted);`,
 		`\tmargin-inline-start: auto;`,
 		`\tpadding-inline-start: var(--size-4-2, 8px);`,
 		`}`,
