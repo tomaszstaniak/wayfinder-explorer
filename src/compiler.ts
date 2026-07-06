@@ -80,6 +80,8 @@ export interface HostData {
 	folderPaths?: readonly string[];
 	/** Paths of zero-byte notes; they get the blank-sheet icon. */
 	emptyFiles?: readonly string[];
+	/** Path of the note currently being edited, if any. */
+	editingFile?: string | null;
 }
 
 /** Scope rows without the state guard (for inherited variables). */
@@ -390,6 +392,17 @@ export function compile(
 		}
 		if (entry.iconColor) {
 			parts.push(`${SCOPE} .nav-file-title[data-path="${esc}"] { --wf-icon-color: ${entry.iconColor}; }`);
+		}
+	}
+
+	// --- layer 5: transient editing indicator (wins over everything) ------
+
+	if (state.settings.editingIndicator && host.editingFile) {
+		const uri = icon([state.settings.editingIcon]);
+		if (uri) {
+			parts.push(
+				`${SCOPE} .nav-file-title[data-path="${escapeCssString(host.editingFile)}"] .nav-file-title-content::before { ${iconVars(uri)} }`
+			);
 		}
 	}
 

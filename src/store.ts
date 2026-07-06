@@ -187,6 +187,14 @@ function parseSettings(raw: unknown): WayfinderSettings {
 			: DEFAULT_SETTINGS.iconColorSource,
 		emptyFileIcons:
 			typeof r.emptyFileIcons === 'boolean' ? r.emptyFileIcons : DEFAULT_SETTINGS.emptyFileIcons,
+		editingIndicator:
+			typeof r.editingIndicator === 'boolean'
+				? r.editingIndicator
+				: DEFAULT_SETTINGS.editingIndicator,
+		editingIcon:
+			typeof r.editingIcon === 'string' && r.editingIcon.trim() !== ''
+				? r.editingIcon.trim()
+				: DEFAULT_SETTINGS.editingIcon,
 	};
 }
 

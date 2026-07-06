@@ -506,6 +506,38 @@ describe('compile: icon colors and empty notes', () => {
 		);
 		expect(css).not.toContain('[data-path="empty.md"]');
 	});
+
+	it('marks the editing file last so it wins over its normal icon', () => {
+		const { css } = compile(
+			state({
+				files: { 'note.md': { icon: 'star' } },
+				settings: { ...defaultData().settings, editingIndicator: true, editingIcon: 'square-pen' },
+			}),
+			fakeResolve,
+			{ editingFile: 'note.md' }
+		);
+		const manual = css.indexOf('data:fake/star');
+		const editing = css.lastIndexOf('[data-path="note.md"] .nav-file-title-content::before');
+		expect(css.slice(editing)).toContain('data:fake/square-pen');
+		expect(editing).toBeGreaterThan(manual);
+	});
+
+	it('emits no editing rule when the indicator is off or no file is editing', () => {
+		expect(
+			compile(
+				state({ settings: { ...defaultData().settings, editingIndicator: false, editingIcon: 'square-pen' } }),
+				fakeResolve,
+				{ editingFile: 'note.md' }
+			).css
+		).not.toContain('data:fake/square-pen');
+		expect(
+			compile(
+				state({ settings: { ...defaultData().settings, editingIndicator: true, editingIcon: 'square-pen' } }),
+				fakeResolve,
+				{ editingFile: null }
+			).css
+		).not.toContain('data:fake/square-pen');
+	});
 });
 
 describe('compile: emphasis and count badges', () => {

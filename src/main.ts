@@ -18,6 +18,9 @@ export default class WayfinderPlugin extends Plugin {
 	private contentIcons = new Map<string, readonly string[]>();
 	/** Paths of zero-byte notes. */
 	private emptyFiles = new Set<string>();
+	/** Path of the note currently being edited, and its linger timer. */
+	private editingPath: string | null = null;
+	private editingTimer: number | null = null;
 
 	async onload() {
 		this.styleManager = new StyleManager(document);
@@ -73,6 +76,12 @@ export default class WayfinderPlugin extends Plugin {
 		);
 		this.registerEvent(this.app.vault.on('modify', (file) => this.updateEmptyFile(file)));
 		this.registerEvent(
+			this.app.workspace.on('editor-change', () => {
+				if (this.store.state.settings.editingIndicator) this.onEditorActivity();
+			})
+		);
+		this.registerEvent(this.app.workspace.on('active-leaf-change', () => this.clearEditing()));
+		this.registerEvent(
 			this.app.metadataCache.on('changed', (file) => this.updateContentIcons(file))
 		);
 		// Initial scan once all metadata is indexed (also fires on startup).
@@ -99,7 +108,35 @@ export default class WayfinderPlugin extends Plugin {
 	}
 
 	onunload() {
+		if (this.editingTimer !== null) window.clearTimeout(this.editingTimer);
 		this.styleManager.unmount();
+	}
+
+	/** Debounce window after the last keystroke before the icon reverts. */
+	private static readonly EDITING_LINGER_MS = 1500;
+
+	private onEditorActivity(): void {
+		const path = this.app.workspace.getActiveFile()?.path ?? null;
+		if (path !== this.editingPath) {
+			this.editingPath = path;
+			this.controller.requestRecompile();
+		}
+		if (this.editingTimer !== null) window.clearTimeout(this.editingTimer);
+		this.editingTimer = window.setTimeout(
+			() => this.clearEditing(),
+			WayfinderPlugin.EDITING_LINGER_MS
+		);
+	}
+
+	private clearEditing(): void {
+		if (this.editingTimer !== null) {
+			window.clearTimeout(this.editingTimer);
+			this.editingTimer = null;
+		}
+		if (this.editingPath !== null) {
+			this.editingPath = null;
+			this.controller.requestRecompile();
+		}
 	}
 
 	openParaPreset(): void {
@@ -136,6 +173,9 @@ export default class WayfinderPlugin extends Plugin {
 		}
 		if (this.store.state.settings.emptyFileIcons && this.emptyFiles.size > 0) {
 			host.emptyFiles = [...this.emptyFiles];
+		}
+		if (this.store.state.settings.editingIndicator && this.editingPath) {
+			host.editingFile = this.editingPath;
 		}
 		return host;
 	}

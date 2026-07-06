@@ -86,6 +86,10 @@ export interface WayfinderSettings {
 	iconColorSource: IconColorSource;
 	/** Give empty notes a blank-sheet icon instead of the note icon. */
 	emptyFileIcons: boolean;
+	/** Swap a note's icon while it is being actively edited. */
+	editingIndicator: boolean;
+	/** Icon shown on the note currently being edited. */
+	editingIcon: string;
 }
 
 export type IconColorSource = 'text' | 'folder';
@@ -130,6 +134,8 @@ export const DEFAULT_SETTINGS: WayfinderSettings = {
 	defaultFolderIcon: 'folder',
 	iconColorSource: 'text',
 	emptyFileIcons: true,
+	editingIndicator: false,
+	editingIcon: 'pencil',
 };
 
 export function defaultData(): WayfinderData {

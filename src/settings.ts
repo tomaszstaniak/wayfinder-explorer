@@ -42,6 +42,36 @@ export class WayfinderSettingTab extends PluginSettingTab {
 		}
 
 		new Setting(containerEl)
+			.setName('Editing indicator')
+			.setDesc('While you are typing in a note, swap its icon to mark it as being edited; it reverts shortly after you stop.')
+			.addToggle((t) =>
+				t.setValue(s.editingIndicator).onChange((v) => {
+					this.store.updateSettings({ editingIndicator: v });
+					this.display();
+				})
+			);
+
+		if (s.editingIndicator) {
+			new Setting(containerEl)
+				.setName('Editing icon')
+				.setDesc(`Currently: ${s.editingIcon}.`)
+				.addButton((b) =>
+					b.setButtonText('Choose…').onClick(() => {
+						new IconPickerModal(this.app, this.wayfinder.iconSource.ids(), (iconId) => {
+							this.store.updateSettings({ editingIcon: iconId });
+							this.display();
+						}).open();
+					})
+				)
+				.addButton((b) =>
+					b.setButtonText('Reset').onClick(() => {
+						this.store.updateSettings({ editingIcon: DEFAULT_SETTINGS.editingIcon });
+						this.display();
+					})
+				);
+		}
+
+		new Setting(containerEl)
 			.setName('Icon color')
 			.setDesc('Follow text: icons match the item’s text color. Follow folder color: icons take their folder scope’s color. A per-item icon color (right-click → Wayfinder) always wins.')
 			.addDropdown((d) =>
