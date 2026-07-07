@@ -8,6 +8,7 @@ import { ParaPresetModal } from './para-modal';
 import { WayfinderSettingTab } from './settings';
 import { Store } from './store';
 import { StyleManager } from './style-manager';
+import { TaskModal } from './task-modal';
 
 export default class WayfinderPlugin extends Plugin {
 	private styleManager!: StyleManager;
@@ -96,6 +97,11 @@ export default class WayfinderPlugin extends Plugin {
 			name: 'Apply PARA preset to detected root folders',
 			callback: () => this.openParaPreset(),
 		});
+		this.addCommand({
+			id: 'quick-add-task',
+			name: 'Quick add task (shorthand)',
+			callback: () => this.openQuickTask(),
+		});
 		this.registerEvent(
 			this.app.workspace.on('file-menu', (menu, file) => {
 				addWayfinderMenu(menu, file, {
@@ -137,6 +143,14 @@ export default class WayfinderPlugin extends Plugin {
 			this.editingPath = null;
 			this.controller.requestRecompile();
 		}
+	}
+
+	openQuickTask(): void {
+		new TaskModal(this.app, (line) => {
+			const editor = this.app.workspace.activeEditor?.editor;
+			if (editor) editor.replaceSelection(line + '\n');
+			else new Notice('Wayfinder: open a note to insert the task.');
+		}).open();
 	}
 
 	openParaPreset(): void {

@@ -203,6 +203,15 @@ export class WayfinderSettingTab extends PluginSettingTab {
 
 		this.displayFolderRules(containerEl);
 
+		new Setting(containerEl).setName('Quick tasks').setHeading();
+
+		new Setting(containerEl)
+			.setName('Quick add task')
+			.setDesc(
+				'One-line capture that compiles to a Tasks-plugin line: @date (today, friday, 3d, 2026-07-15), !priority (high, !!!, 2), *recurrence (weekly). Also accepts an existing "- [ ]" line to augment it. Bindable to a hotkey via the “Quick add task (shorthand)” command.'
+			)
+			.addButton((b) => b.setButtonText('Add task…').onClick(() => this.wayfinder.openQuickTask()));
+
 		new Setting(containerEl).setName('Presets').setHeading();
 
 		new Setting(containerEl)

@@ -38,3 +38,29 @@
 	font-family: var(--font-monospace);
 	font-size: var(--font-smallest);
 }
+
+.wayfinder-task-input {
+	width: 100%;
+	font-size: var(--font-ui-medium);
+	padding: var(--size-4-2);
+	margin-bottom: var(--size-4-2);
+}
+
+.wayfinder-task-preview {
+	font-family: var(--font-monospace);
+	font-size: var(--font-smaller);
+	color: var(--text-normal);
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+	padding: var(--size-4-2);
+	min-height: 1.6em;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.wayfinder-task-hint {
+	font-size: var(--font-smallest);
+	color: var(--text-faint);
+	margin-top: var(--size-4-2);
+	line-height: 1.5;
+}
