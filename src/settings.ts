@@ -189,24 +189,30 @@ export class WayfinderSettingTab extends PluginSettingTab {
 		if (s.showFolderCounts) {
 			new Setting(containerEl)
 				.setName('Count mode')
-				.setDesc('Items: files and folders directly inside. Notes: notes anywhere in the subtree. Open tasks: unfinished tasks (todo and in-progress) anywhere in the subtree.')
+				.setDesc('Items: files and folders directly inside. Notes: notes anywhere in the subtree.')
 				.addDropdown((d) =>
 					d
 						.addOption('items', 'Items inside')
 						.addOption('notes', 'Notes in subtree')
-						.addOption('tasks', 'Open tasks in subtree')
 						.setValue(s.folderCountMode)
-						.onChange((v) => {
-							const mode =
-								v === 'notes' ? 'notes' : v === 'tasks' ? 'tasks' : 'items';
-							this.store.updateSettings({ folderCountMode: mode });
-						})
+						.onChange((v) =>
+							this.store.updateSettings({ folderCountMode: v === 'notes' ? 'notes' : 'items' })
+						)
 				);
 		}
 
 		this.displayFolderRules(containerEl);
 
-		new Setting(containerEl).setName('Quick tasks').setHeading();
+		new Setting(containerEl).setName('Tasks').setHeading();
+
+		new Setting(containerEl)
+			.setName('Show open-task counts')
+			.setDesc('Add an accent pill to each folder showing its number of unfinished tasks (todo and in-progress) anywhere inside it — shown in addition to the item count.')
+			.addToggle((t) =>
+				t
+					.setValue(s.showTaskCounts)
+					.onChange((v) => this.store.updateSettings({ showTaskCounts: v }))
+			);
 
 		new Setting(containerEl)
 			.setName('Quick add task')

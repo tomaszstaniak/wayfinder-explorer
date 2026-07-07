@@ -92,13 +92,15 @@ export interface WayfinderSettings {
 	editingIcon: string;
 	/** Pulse the row's scope color once when editing begins. */
 	editingBlink: boolean;
+	/** Show an open-task count pill on folders, alongside the item count. */
+	showTaskCounts: boolean;
 }
 
 export type IconColorSource = 'text' | 'folder';
 export const ICON_COLOR_SOURCES: readonly IconColorSource[] = ['text', 'folder'];
 
-export type FolderCountMode = 'items' | 'notes' | 'tasks';
-export const FOLDER_COUNT_MODES: readonly FolderCountMode[] = ['items', 'notes', 'tasks'];
+export type FolderCountMode = 'items' | 'notes';
+export const FOLDER_COUNT_MODES: readonly FolderCountMode[] = ['items', 'notes'];
 
 export type LeaderStyle = 'none' | 'dots' | 'dashes' | 'line';
 export const LEADER_STYLES: readonly LeaderStyle[] = ['none', 'dots', 'dashes', 'line'];
@@ -139,6 +141,7 @@ export const DEFAULT_SETTINGS: WayfinderSettings = {
 	editingIndicator: false,
 	editingIcon: 'pencil',
 	editingBlink: true,
+	showTaskCounts: false,
 };
 
 export function defaultData(): WayfinderData {

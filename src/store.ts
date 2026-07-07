@@ -197,6 +197,10 @@ function parseSettings(raw: unknown): WayfinderSettings {
 				: DEFAULT_SETTINGS.editingIcon,
 		editingBlink:
 			typeof r.editingBlink === 'boolean' ? r.editingBlink : DEFAULT_SETTINGS.editingBlink,
+		showTaskCounts:
+			typeof r.showTaskCounts === 'boolean'
+				? r.showTaskCounts
+				: DEFAULT_SETTINGS.showTaskCounts,
 	};
 }
 

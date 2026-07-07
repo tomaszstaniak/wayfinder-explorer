@@ -87,8 +87,8 @@ export default class WayfinderPlugin extends Plugin {
 		this.registerEvent(
 			this.app.metadataCache.on('changed', (file) => {
 				this.updateContentIcons(file);
-				// A note's tasks may have changed; refresh task-mode counts.
-				if (this.store.state.settings.folderCountMode === 'tasks') this.countsChanged();
+				// A note's tasks may have changed; refresh task counts.
+				if (this.store.state.settings.showTaskCounts) this.controller.requestRecompile();
 			})
 		);
 		// Initial scan once all metadata is indexed (also fires on startup).
@@ -194,6 +194,7 @@ export default class WayfinderPlugin extends Plugin {
 	private needsCounts(): boolean {
 		return (
 			this.store.state.settings.showFolderCounts ||
+			this.store.state.settings.showTaskCounts ||
 			Object.values(this.store.state.folders).some((e) => e.countBadge)
 		);
 	}
@@ -216,6 +217,9 @@ export default class WayfinderPlugin extends Plugin {
 		}
 		if (this.store.state.settings.editingIndicator && this.editingPath) {
 			host.editingFile = this.editingPath;
+		}
+		if (this.store.state.settings.showTaskCounts) {
+			host.taskCounts = this.openTaskCounts();
 		}
 		return host;
 	}
@@ -244,11 +248,9 @@ export default class WayfinderPlugin extends Plugin {
 		if (changed) this.controller.requestRecompile();
 	}
 
-	/** Counts per folder: direct children, notes in subtree, or open tasks. */
+	/** Counts per folder: direct children, or notes in the whole subtree. */
 	private folderCounts(): FolderCounts {
-		const mode = this.store.state.settings.folderCountMode;
-		if (mode === 'tasks') return this.openTaskCounts();
-		const notesMode = mode === 'notes';
+		const notesMode = this.store.state.settings.folderCountMode === 'notes';
 		const counts = new Map<string, number>();
 		const walk = (folder: TFolder): number => {
 			let notes = 0;

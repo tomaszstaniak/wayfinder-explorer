@@ -278,6 +278,34 @@ describe('compile: appearance settings', () => {
 	});
 });
 
+describe('compile: task-count pill', () => {
+	it('renders task counts on the name pseudo-element, distinct from item counts', () => {
+		const { css } = compile(
+			state({ settings: { ...defaultData().settings, showFolderCounts: true } }),
+			fakeResolve,
+			{
+				counts: new Map([['Projects', 12]]),
+				taskCounts: new Map([['Projects', 3]]),
+			}
+		);
+		// item count on the title ::after (far right)
+		expect(css).toContain('.nav-folder-title[data-path="Projects"]::after { content: "12"; }');
+		// task pill on the name content ::after (by the name)
+		expect(css).toContain(
+			'.nav-folder-title[data-path="Projects"] .nav-folder-title-content::after { content: "3"; }'
+		);
+		expect(css).toContain('var(--color-accent');
+	});
+
+	it('emits no task pill without taskCounts, and skips zero-task folders', () => {
+		expect(compile(state(), fakeResolve).css).not.toContain('nav-folder-title-content::after');
+		const withZero = compile(state(), fakeResolve, {
+			taskCounts: new Map([['A', 0]]),
+		});
+		expect(withZero.css).not.toContain('[data-path="A"] .nav-folder-title-content::after');
+	});
+});
+
 describe('compile: content-detected icons', () => {
 	const contentIcons = new Map<string, readonly string[]>([
 		['Boards/roadmap.md', ['square-kanban', 'kanban']],

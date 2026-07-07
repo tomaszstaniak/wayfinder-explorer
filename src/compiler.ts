@@ -95,6 +95,36 @@ export interface HostData {
 	emptyFiles?: readonly string[];
 	/** Path of the note currently being edited, if any. */
 	editingFile?: string | null;
+	/** Open-task counts per folder subtree (the accent task pill). */
+	taskCounts?: FolderCounts;
+}
+
+/**
+ * Task pill rendered on the folder name's own ::after — a separate
+ * pseudo-element from the item count (.nav-folder-title::after), so both
+ * numbers can show at once: item count far right, task pill by the name.
+ */
+function taskCountRules(taskCounts: FolderCounts): string[] {
+	const parts: string[] = [
+		`${SCOPE} .nav-folder-title-content::after {`,
+		`\tfont-family: var(--font-monospace);`,
+		`\tfont-size: var(--font-smallest, 0.8em);`,
+		`\tline-height: 1;`,
+		`\tmargin-inline-start: var(--size-2-3, 6px);`,
+		`\tpadding: 1px 5px;`,
+		`\tborder-radius: var(--radius-s, 4px);`,
+		`\tbackground-color: color-mix(in srgb, var(--color-accent, var(--interactive-accent)) 18%, transparent);`,
+		`\tcolor: var(--color-accent, var(--interactive-accent));`,
+		`}`,
+	];
+	const sorted = [...taskCounts.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
+	for (const [path, count] of sorted) {
+		if (count <= 0) continue;
+		parts.push(
+			`${SCOPE} .nav-folder-title[data-path="${escapeCssString(path)}"] .nav-folder-title-content::after { content: "${count}"; }`
+		);
+	}
+	return parts;
 }
 
 /** Scope rows without the state guard (for inherited variables). */
@@ -243,6 +273,10 @@ export function compile(
 		parts.push(countsBaseBlock(state.settings));
 		if (state.settings.showFolderCounts) parts.push(...countRules(counts, state.settings));
 		parts.push(...badgeRules(state, counts));
+	}
+
+	if (host.taskCounts && host.taskCounts.size > 0) {
+		parts.push(...taskCountRules(host.taskCounts));
 	}
 
 	parts.push(...emphasisRules(state));
