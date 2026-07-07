@@ -208,7 +208,7 @@ export class WayfinderSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName('Quick add task')
 			.setDesc(
-				'One-line capture that compiles to a Tasks-plugin line: @date (today, friday, 3d, 2026-07-15), !priority (high, !!!, 2), *recurrence (weekly). Also accepts an existing "- [ ]" line to augment it. Bindable to a hotkey via the “Quick add task (shorthand)” command.'
+				'One-line capture that compiles to a Tasks-plugin line: @date (today, friday, 3d, 2026-07-15), !priority (high, !!!, 2), *recurrence (weekly). Also accepts an existing "- [ ]" line to augment it. Or write the shorthand directly in a note and run "Convert line to task (shorthand)" (bind either command to a hotkey).'
 			)
 			.addButton((b) => b.setButtonText('Add task…').onClick(() => this.wayfinder.openQuickTask()));
 

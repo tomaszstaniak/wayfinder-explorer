@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile, TFolder, getIcon, getIconIds } from 'obsidian';
+import { Editor, Notice, Plugin, TFile, TFolder, getIcon, getIconIds } from 'obsidian';
 import { FolderCounts, HostData } from './compiler';
 import { Controller } from './controller';
 import { FRONTMATTER_ICONS, IconResolver, IconSource } from './icons';
@@ -9,6 +9,7 @@ import { WayfinderSettingTab } from './settings';
 import { Store } from './store';
 import { StyleManager } from './style-manager';
 import { TaskModal } from './task-modal';
+import { shorthandToTaskLine } from './task-parser';
 
 export default class WayfinderPlugin extends Plugin {
 	private styleManager!: StyleManager;
@@ -102,6 +103,11 @@ export default class WayfinderPlugin extends Plugin {
 			name: 'Quick add task (shorthand)',
 			callback: () => this.openQuickTask(),
 		});
+		this.addCommand({
+			id: 'convert-line-to-task',
+			name: 'Convert line to task (shorthand)',
+			editorCallback: (editor) => this.convertLinesToTasks(editor),
+		});
 		this.registerEvent(
 			this.app.workspace.on('file-menu', (menu, file) => {
 				addWayfinderMenu(menu, file, {
@@ -142,6 +148,21 @@ export default class WayfinderPlugin extends Plugin {
 		if (this.editingPath !== null) {
 			this.editingPath = null;
 			this.controller.requestRecompile();
+		}
+	}
+
+	/** Rewrite each non-empty line in the selection (or the cursor line) in place. */
+	private convertLinesToTasks(editor: Editor): void {
+		const now = new Date();
+		const from = editor.getCursor('from').line;
+		const to = editor.getCursor('to').line;
+		for (let line = from; line <= to; line++) {
+			const text = editor.getLine(line);
+			const indent = /^\s*/.exec(text)?.[0] ?? '';
+			const body = text.slice(indent.length);
+			if (body === '') continue;
+			const converted = shorthandToTaskLine(body, now);
+			if (converted !== body) editor.setLine(line, indent + converted);
 		}
 	}
 
