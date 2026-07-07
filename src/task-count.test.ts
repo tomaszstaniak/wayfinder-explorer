@@ -59,4 +59,19 @@ describe('rollUpToFolders', () => {
 	it('ignores root-level files (no folder to attribute to)', () => {
 		expect(rollUpToFolders(new Map([['loose.md', 2]])).size).toBe(0);
 	});
+
+	it('drops files under any excluded folder subtree', () => {
+		const per = new Map([
+			['01 Projects/Velvet Ledger/docs/a.md', 4193],
+			['01 Projects/Velvet Ledger/notes.md', 2],
+			['02 Areas/health.md', 9],
+		]);
+		const folders = rollUpToFolders(per, ['01 Projects/Velvet Ledger/docs']);
+		// the symlinked docs subtree is gone from every ancestor...
+		expect(folders.get('01 Projects/Velvet Ledger/docs')).toBeUndefined();
+		// ...but sibling notes and other trees are untouched
+		expect(folders.get('01 Projects/Velvet Ledger')).toBe(2);
+		expect(folders.get('01 Projects')).toBe(2);
+		expect(folders.get('02 Areas')).toBe(9);
+	});
 });

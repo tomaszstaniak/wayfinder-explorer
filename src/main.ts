@@ -293,7 +293,10 @@ export default class WayfinderPlugin extends Plugin {
 
 	/** Open tasks per folder subtree, rolled up from the per-file cache. */
 	private openTaskCounts(): FolderCounts {
-		return rollUpToFolders(this.taskCountByFile);
+		const excluded = Object.entries(this.store.state.folders)
+			.filter(([, entry]) => entry.excludeTaskCount)
+			.map(([path]) => path);
+		return rollUpToFolders(this.taskCountByFile, excluded);
 	}
 
 	/** Re-read one note and update its open-task count. */

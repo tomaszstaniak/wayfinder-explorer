@@ -85,6 +85,10 @@ function parseFolderEntry(raw: unknown): FolderEntry | null {
 		if (typeof c === 'string' && HEX_COLOR_RE.test(c)) entry.iconColor = c.toLowerCase();
 		else return null;
 	}
+	if ('excludeTaskCount' in raw) {
+		if (raw.excludeTaskCount === true) entry.excludeTaskCount = true;
+		else return null;
+	}
 	return Object.keys(entry).length > 0 ? entry : null;
 }
 
@@ -402,6 +406,20 @@ export class Store {
 			const i = icon.trim();
 			if (i === '') return false;
 			next.childIcon = i;
+		}
+		return this.putFolder(p, next);
+	}
+
+	/** Toggle whether this folder's subtree is excluded from task counts. */
+	setExcludeTaskCount(path: string, exclude: boolean): boolean {
+		const p = normalizePath(path);
+		if (p === null) return false;
+		const prev = this.data.folders[p];
+		const next: FolderEntry = { ...prev };
+		if (exclude) next.excludeTaskCount = true;
+		else {
+			if (!prev || !('excludeTaskCount' in prev)) return false;
+			delete next.excludeTaskCount;
 		}
 		return this.putFolder(p, next);
 	}

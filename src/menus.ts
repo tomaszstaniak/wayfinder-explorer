@@ -247,6 +247,17 @@ function buildItems(
 			})
 	);
 
+	if (ctx.store.state.settings.showTaskCounts) {
+		sub.addItem((i: MenuItem) => {
+			i.setTitle(prefix + 'Exclude from task counts')
+				.setIcon('list-x')
+				.onClick(() => {
+					ctx.store.setExcludeTaskCount(target.path, !folderEntry?.excludeTaskCount);
+				});
+			if (folderEntry?.excludeTaskCount) i.setChecked(true);
+		});
+	}
+
 	sub.addSeparator();
 	if (localColor !== undefined) {
 		sub.addItem((i: MenuItem) =>

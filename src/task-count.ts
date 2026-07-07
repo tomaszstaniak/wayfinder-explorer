@@ -24,17 +24,25 @@ export function countOpenTasksInText(text: string): number {
 	return n;
 }
 
+/** True if path is inside (or equal to) any of the excluded folders. */
+function isExcluded(path: string, excluded: readonly string[]): boolean {
+	return excluded.some((folder) => path === folder || path.startsWith(folder + '/'));
+}
+
 /**
  * Sum per-file open-task counts into every ancestor folder. A file with
  * N open tasks adds N to each folder on its path. Files with zero are
  * skipped, so only folders that actually contain open tasks appear.
+ * Files under any excludedFolder subtree are ignored entirely.
  */
 export function rollUpToFolders(
-	fileTaskCounts: ReadonlyMap<string, number>
+	fileTaskCounts: ReadonlyMap<string, number>,
+	excludedFolders: readonly string[] = []
 ): Map<string, number> {
 	const folders = new Map<string, number>();
 	for (const [path, count] of fileTaskCounts) {
 		if (count <= 0) continue;
+		if (excludedFolders.length > 0 && isExcluded(path, excludedFolders)) continue;
 		const parts = path.split('/');
 		for (let i = 1; i < parts.length; i++) {
 			const folder = parts.slice(0, i).join('/');

@@ -31,6 +31,8 @@ export interface FolderEntry {
 	childIcon?: string;
 	/** Explicit icon color; absent = follow settings.iconColorSource. */
 	iconColor?: string;
+	/** Don't count open tasks in this folder's subtree (e.g. symlinked repos). */
+	excludeTaskCount?: boolean;
 }
 
 export type Emphasis = 'dim' | 'normal';
