@@ -189,15 +189,18 @@ export class WayfinderSettingTab extends PluginSettingTab {
 		if (s.showFolderCounts) {
 			new Setting(containerEl)
 				.setName('Count mode')
-				.setDesc('Items: files and folders directly inside. Notes: notes anywhere in the subtree.')
+				.setDesc('Items: files and folders directly inside. Notes: notes anywhere in the subtree. Open tasks: unfinished tasks (todo and in-progress) anywhere in the subtree.')
 				.addDropdown((d) =>
 					d
 						.addOption('items', 'Items inside')
 						.addOption('notes', 'Notes in subtree')
+						.addOption('tasks', 'Open tasks in subtree')
 						.setValue(s.folderCountMode)
-						.onChange((v) =>
-							this.store.updateSettings({ folderCountMode: v === 'notes' ? 'notes' : 'items' })
-						)
+						.onChange((v) => {
+							const mode =
+								v === 'notes' ? 'notes' : v === 'tasks' ? 'tasks' : 'items';
+							this.store.updateSettings({ folderCountMode: mode });
+						})
 				);
 		}
 

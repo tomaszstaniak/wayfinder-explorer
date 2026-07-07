@@ -10,6 +10,7 @@ import { Store } from './store';
 import { StyleManager } from './style-manager';
 import { TaskModal } from './task-modal';
 import { shorthandToTaskLine } from './task-parser';
+import { isOpenTaskStatus, rollUpToFolders } from './task-count';
 
 export default class WayfinderPlugin extends Plugin {
 	private styleManager!: StyleManager;
@@ -84,7 +85,11 @@ export default class WayfinderPlugin extends Plugin {
 		);
 		this.registerEvent(this.app.workspace.on('active-leaf-change', () => this.clearEditing()));
 		this.registerEvent(
-			this.app.metadataCache.on('changed', (file) => this.updateContentIcons(file))
+			this.app.metadataCache.on('changed', (file) => {
+				this.updateContentIcons(file);
+				// A note's tasks may have changed; refresh task-mode counts.
+				if (this.store.state.settings.folderCountMode === 'tasks') this.countsChanged();
+			})
 		);
 		// Initial scan once all metadata is indexed (also fires on startup).
 		this.registerEvent(
@@ -239,9 +244,11 @@ export default class WayfinderPlugin extends Plugin {
 		if (changed) this.controller.requestRecompile();
 	}
 
-	/** Counts per folder: direct children, or notes in the whole subtree. */
+	/** Counts per folder: direct children, notes in subtree, or open tasks. */
 	private folderCounts(): FolderCounts {
-		const notesMode = this.store.state.settings.folderCountMode === 'notes';
+		const mode = this.store.state.settings.folderCountMode;
+		if (mode === 'tasks') return this.openTaskCounts();
+		const notesMode = mode === 'notes';
 		const counts = new Map<string, number>();
 		const walk = (folder: TFolder): number => {
 			let notes = 0;
@@ -256,6 +263,20 @@ export default class WayfinderPlugin extends Plugin {
 		};
 		walk(this.app.vault.getRoot());
 		return counts;
+	}
+
+	/** Open tasks per folder subtree, read from the metadata cache. */
+	private openTaskCounts(): FolderCounts {
+		const perFile = new Map<string, number>();
+		for (const file of this.app.vault.getMarkdownFiles()) {
+			const items = this.app.metadataCache.getFileCache(file)?.listItems ?? [];
+			let n = 0;
+			for (const item of items) {
+				if (typeof item.task === 'string' && isOpenTaskStatus(item.task)) n++;
+			}
+			if (n > 0) perFile.set(file.path, n);
+		}
+		return rollUpToFolders(perFile);
 	}
 
 	private countsChanged(): void {

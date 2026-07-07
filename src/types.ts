@@ -97,8 +97,8 @@ export interface WayfinderSettings {
 export type IconColorSource = 'text' | 'folder';
 export const ICON_COLOR_SOURCES: readonly IconColorSource[] = ['text', 'folder'];
 
-export type FolderCountMode = 'items' | 'notes';
-export const FOLDER_COUNT_MODES: readonly FolderCountMode[] = ['items', 'notes'];
+export type FolderCountMode = 'items' | 'notes' | 'tasks';
+export const FOLDER_COUNT_MODES: readonly FolderCountMode[] = ['items', 'notes', 'tasks'];
 
 export type LeaderStyle = 'none' | 'dots' | 'dashes' | 'line';
 export const LEADER_STYLES: readonly LeaderStyle[] = ['none', 'dots', 'dashes', 'line'];
