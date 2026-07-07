@@ -13,6 +13,18 @@ export function isOpenTaskStatus(status: string): boolean {
 }
 
 /**
+ * Count open task lines in raw markdown. Matches only real checkboxes
+ * (`- [ ]`, `* [/]`, `+ [ ]`, indented), NOT plain bullets — Obsidian's
+ * metadata task field is unreliable for this, so we read the text.
+ */
+export function countOpenTasksInText(text: string): number {
+	const re = /^[ \t]*[-*+] \[([ /])\] /gm;
+	let n = 0;
+	while (re.exec(text) !== null) n++;
+	return n;
+}
+
+/**
  * Sum per-file open-task counts into every ancestor folder. A file with
  * N open tasks adds N to each folder on its path. Files with zero are
  * skipped, so only folders that actually contain open tasks appear.

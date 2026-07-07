@@ -10,7 +10,7 @@ import { Store } from './store';
 import { StyleManager } from './style-manager';
 import { TaskModal } from './task-modal';
 import { shorthandToTaskLine } from './task-parser';
-import { isOpenTaskStatus, rollUpToFolders } from './task-count';
+import { countOpenTasksInText, rollUpToFolders } from './task-count';
 
 export default class WayfinderPlugin extends Plugin {
 	private styleManager!: StyleManager;
@@ -21,6 +21,8 @@ export default class WayfinderPlugin extends Plugin {
 	private contentIcons = new Map<string, readonly string[]>();
 	/** Paths of zero-byte notes. */
 	private emptyFiles = new Set<string>();
+	/** Open-task count per note (only notes with >0), from file content. */
+	private taskCountByFile = new Map<string, number>();
 	/** Path of the note currently being edited, and its linger timer. */
 	private editingPath: string | null = null;
 	private editingTimer: number | null = null;
@@ -52,12 +54,28 @@ export default class WayfinderPlugin extends Plugin {
 		await this.controller.start();
 		this.addSettingTab(new WayfinderSettingTab(this.app, this, this.store));
 
+		// Rescan open-task counts when the feature is switched on.
+		let taskCountsOn = this.store.state.settings.showTaskCounts;
+		this.store.subscribe(() => {
+			const on = this.store.state.settings.showTaskCounts;
+			if (on !== taskCountsOn) {
+				taskCountsOn = on;
+				void this.scanTaskCounts();
+			}
+		});
+		if (taskCountsOn) void this.scanTaskCounts();
+
 		this.registerEvent(
 			this.app.vault.on('rename', (file, oldPath) => {
 				this.controller.handleRename(oldPath, file.path);
 				if (this.contentIcons.delete(oldPath)) this.updateContentIcons(file);
 				if (this.emptyFiles.delete(oldPath)) {
 					this.emptyFiles.add(file.path);
+					this.controller.requestRecompile();
+				}
+				if (this.taskCountByFile.has(oldPath)) {
+					this.taskCountByFile.set(file.path, this.taskCountByFile.get(oldPath)!);
+					this.taskCountByFile.delete(oldPath);
 					this.controller.requestRecompile();
 				}
 				this.countsChanged();
@@ -68,16 +86,23 @@ export default class WayfinderPlugin extends Plugin {
 				this.controller.handleDelete(file.path);
 				if (this.contentIcons.delete(file.path)) this.controller.requestRecompile();
 				if (this.emptyFiles.delete(file.path)) this.controller.requestRecompile();
+				if (this.taskCountByFile.delete(file.path)) this.controller.requestRecompile();
 				this.countsChanged();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on('create', (file) => {
 				this.updateEmptyFile(file);
+				void this.updateFileTaskCount(file);
 				this.countsChanged();
 			})
 		);
-		this.registerEvent(this.app.vault.on('modify', (file) => this.updateEmptyFile(file)));
+		this.registerEvent(
+			this.app.vault.on('modify', (file) => {
+				this.updateEmptyFile(file);
+				void this.updateFileTaskCount(file);
+			})
+		);
 		this.registerEvent(
 			this.app.workspace.on('editor-change', () => {
 				if (this.store.state.settings.editingIndicator) this.onEditorActivity();
@@ -87,8 +112,7 @@ export default class WayfinderPlugin extends Plugin {
 		this.registerEvent(
 			this.app.metadataCache.on('changed', (file) => {
 				this.updateContentIcons(file);
-				// A note's tasks may have changed; refresh task counts.
-				if (this.store.state.settings.showTaskCounts) this.controller.requestRecompile();
+				void this.updateFileTaskCount(file);
 			})
 		);
 		// Initial scan once all metadata is indexed (also fires on startup).
@@ -267,18 +291,39 @@ export default class WayfinderPlugin extends Plugin {
 		return counts;
 	}
 
-	/** Open tasks per folder subtree, read from the metadata cache. */
+	/** Open tasks per folder subtree, rolled up from the per-file cache. */
 	private openTaskCounts(): FolderCounts {
-		const perFile = new Map<string, number>();
-		for (const file of this.app.vault.getMarkdownFiles()) {
-			const items = this.app.metadataCache.getFileCache(file)?.listItems ?? [];
-			let n = 0;
-			for (const item of items) {
-				if (typeof item.task === 'string' && isOpenTaskStatus(item.task)) n++;
+		return rollUpToFolders(this.taskCountByFile);
+	}
+
+	/** Re-read one note and update its open-task count. */
+	private async updateFileTaskCount(file: unknown): Promise<void> {
+		if (!(file instanceof TFile) || file.extension !== 'md') return;
+		if (!this.store.state.settings.showTaskCounts) return;
+		const n = countOpenTasksInText(await this.app.vault.cachedRead(file));
+		const had = this.taskCountByFile.get(file.path) ?? 0;
+		if (n === had) return;
+		if (n > 0) this.taskCountByFile.set(file.path, n);
+		else this.taskCountByFile.delete(file.path);
+		this.controller.requestRecompile();
+	}
+
+	/** Full rescan of open-task counts (on enable / startup). */
+	async scanTaskCounts(): Promise<void> {
+		if (!this.store.state.settings.showTaskCounts) {
+			if (this.taskCountByFile.size > 0) {
+				this.taskCountByFile = new Map();
+				this.controller.requestRecompile();
 			}
-			if (n > 0) perFile.set(file.path, n);
+			return;
 		}
-		return rollUpToFolders(perFile);
+		const next = new Map<string, number>();
+		for (const file of this.app.vault.getMarkdownFiles()) {
+			const n = countOpenTasksInText(await this.app.vault.cachedRead(file));
+			if (n > 0) next.set(file.path, n);
+		}
+		this.taskCountByFile = next;
+		this.controller.requestRecompile();
 	}
 
 	private countsChanged(): void {

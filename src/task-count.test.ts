@@ -1,5 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { isOpenTaskStatus, rollUpToFolders } from './task-count';
+import { countOpenTasksInText, isOpenTaskStatus, rollUpToFolders } from './task-count';
+
+describe('countOpenTasksInText', () => {
+	it('counts only real open checkboxes, not bullets or done/cancelled', () => {
+		const text = [
+			'- [ ] open todo',
+			'- [/] in progress',
+			'- [x] done',
+			'- [-] cancelled',
+			'- plain bullet',
+			'* another bullet',
+			'  - [ ] indented open',
+			'text with [ ] mid-line, not a task',
+		].join('\n');
+		expect(countOpenTasksInText(text)).toBe(3); // two [ ] + one [/]
+	});
+	it('returns 0 for prose and empty input', () => {
+		expect(countOpenTasksInText('just a paragraph\n- a list\n')).toBe(0);
+		expect(countOpenTasksInText('')).toBe(0);
+	});
+});
 
 describe('isOpenTaskStatus', () => {
 	it('counts todo and in-progress as open', () => {
