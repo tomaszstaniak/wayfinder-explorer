@@ -40,6 +40,64 @@ Projects most saturated, Areas medium, Resources low, Archive dimmed and
 colorless, Inbox with a count badge. It writes ordinary Wayfinder
 assignments: adjust or undo any of it from the folder context menu.
 
+## Tasks
+
+Wayfinder doesn't replace the [Tasks](https://publish.obsidian.md/tasks/)
+plugin — it makes it faster to *feed* and easier to *see*. Everything here
+produces or reads standard Tasks-compatible markdown, so you keep Tasks'
+querying, recurrence, and rendering intact.
+
+### Faster capture — shorthand → Tasks line
+
+Tasks' power lives behind an emoji syntax (`📅` due, `⏫` priority, `🔁`
+recurrence) that's a chore to type. Wayfinder lets you write a humane
+shorthand and compiles it to the canonical line:
+
+| You type | Becomes |
+|---|---|
+| `Call dentist @tomorrow` | `- [ ] Call dentist 📅 2026-07-08` |
+| `Submit report @friday !high` | `- [ ] Submit report ⏫ 📅 2026-07-10` |
+| `Water plants *weekly` | `- [ ] Water plants 🔁 every week` |
+
+The sigils:
+
+- **`@date`** — due date: `@today`, `@tomorrow`, `@friday`, `@3d`, `@2w`,
+  `@2026-07-15`. Use `@start:…` / `@sched:…` for start and scheduled dates.
+- **`!priority`** — `!high` / `!!!` (highest) … `!low`, or `!1`–`!5`.
+- **`*recurrence`** — `*daily`, `*weekly`, `*monthly`, or `*"every 2 weeks"`
+  (quote anything custom).
+- **`#tags`** pass straight through.
+
+Two ways to run it:
+
+1. **Quick add task** — command *"Wayfinder: Quick add task (shorthand)"*
+   (or Settings → Tasks → **Add task…**). A single field with a **live
+   preview** of the compiled line; Enter inserts it at your cursor. The
+   opposite of a multi-field modal.
+2. **Convert line to task** — command *"Wayfinder: Convert line to task
+   (shorthand)"*. Type shorthand directly in a note and convert the current
+   line (or a whole selection) in place. Bind either command to a hotkey.
+
+Both also accept a line that's **already a checkbox** — `- [ ] …` or your
+custom `- [/] …` (in-progress) — preserving its status and augmenting it, so
+you can add `@friday` to an existing task too.
+
+### At-a-glance counts — open tasks per folder
+
+Turn on Settings → Tasks → **Show open-task counts** and every folder gains
+a small accent **task pill** next to its name showing the number of
+unfinished tasks (`- [ ]` todo and `- [/]` in-progress) anywhere in its
+subtree. It's *additional* to the item count (which stays at the row's right
+edge), reads only real checkboxes from note content — never plain bullets,
+done, or cancelled — and updates live as you check things off.
+
+### Excluding folders
+
+Task counts follow symlinks, so a linked external repo full of `- [ ]`
+checklists can flood the numbers. Right-click a folder → **Wayfinder →
+Exclude from task counts** (shown when counts are on) to drop that subtree
+from the rollup. Stored per folder; survives renames.
+
 ## How it works
 
 Wayfinder never touches the file explorer's DOM. It keeps a small data store
@@ -56,12 +114,17 @@ Disable the plugin and every trace is gone.
 | Main line width | 2px | The colored vertical line |
 | Folder item counts | off | Count per folder, monospace, right-aligned |
 | Count mode | items | "Items inside" (direct children) or "Notes in subtree" |
+| Show open-task counts | off | Accent task pill per folder, additive to the item count |
 
 ## Controls
 
 Right-click a **folder**: set/remove icon, 8 preset colors, custom color,
-inherit color, no color for this subtree.
+inherit color, no color for this subtree, count badge, and — when task
+counts are on — exclude from task counts.
 Right-click a **file**: set/remove icon.
+
+Commands (bind to hotkeys): *Quick add task (shorthand)*, *Convert line to
+task (shorthand)*, *Apply PARA preset*.
 
 ## Data
 
