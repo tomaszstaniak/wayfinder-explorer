@@ -109,23 +109,29 @@ applyStatusToLine(content, line, expectedRaw, newChar):
   lineEnd = next '\n' (or end); lineText = content[start..lineEnd]
            with a single trailing '\r' stripped for comparison only
   if lineText !== expectedRaw            → { ok: false }   // no fuzzy matching
-  bracket = index of "[" within lineText
-  offset  = start + bracket + 1           // the status char between [ ]
+  // locate the status span with the SAME checkbox shape as the extractor,
+  // not "first '['" — custom/odd status chars stay correct
+  match = /^([ \t]*[-*+] \[)([^\]])(\] )/.exec(lineText)
+  if no match                            → { ok: false }
+  statusStart = start + match[1].length
+  statusEnd   = statusStart + match[2].length   // captured status span
   return { ok: true,
-           content: content[0..offset] + newChar + content[offset+1..] }
+           content: content[0..statusStart] + newChar + content[statusEnd..] }
 ```
 
-This changes exactly one character and preserves every original line ending
-and all surrounding text.
+This replaces only the captured status span, preserves every original line
+ending and all surrounding text, and never latches onto a later `[` if the
+line is somehow no longer a checkbox.
 
 ### Source selection — editor buffer first
 
 `toggleTaskStatus(app, file, task)`:
 1. If the file is open in a `MarkdownView`, operate on its **editor**:
    verify `editor.getLine(task.line) === task.raw` (EOL-free by construction),
-   then `editor.replaceRange(newChar, {line, ch: bracket+1}, {line, ch:
-   bracket+2})`. This edits the live buffer, preserves EOL, and never fights
-   unsaved state.
+   locate the status span with the same checkbox regex to get its column
+   (`statusStart`/`statusEnd`), then `editor.replaceRange(newChar, {line,
+   ch: statusStart}, {line, ch: statusEnd})`. This edits the live buffer,
+   preserves EOL, and never fights unsaved state.
 2. Otherwise (no open editor) read the file, run `applyStatusToLine`, and if
    `ok` write via `vault.process` (atomic read-modify-write).
 3. On any mismatch (`ok: false` or `getLine` ≠ `raw`) → **abort**, re-extract
