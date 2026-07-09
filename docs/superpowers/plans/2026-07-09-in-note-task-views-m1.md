@@ -1,6 +1,6 @@
 # In-note Task Views — Milestone 1 (pure engine) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Implement task-by-task; each task is an independent TDD cycle (write test → see it fail → implement → see it pass → commit). Steps use checkbox (`- [ ]`) syntax for tracking. In a Claude/superpowers workflow, `superpowers:subagent-driven-development` or `superpowers:executing-plans` drive this; any executor that follows the steps in order works.
 
 **Goal:** Build the pure, unit-tested task engine — extract structured tasks from note markdown, and safely compute status-toggle edits — that later milestones (sidebar, footer) render and drive.
 
@@ -18,9 +18,10 @@
 - **Toggle is binary done↔todo:** `x`/`X` → `' '`; every other status char → `'x'`. No cycling of `/` or `-`.
 - **Fence exactness:** an opening fence is `` ``` `` or `~~~` with up to three leading spaces; it closes only on the **same marker character** at **≥ the opening length**, with only trailing whitespace.
 - `raw` on an `ExtractedTask` is the line text **without** any trailing `\r` or `\n` (matches Obsidian `editor.getLine`).
+- **Strict TypeScript:** the repo uses `strict` + `noUncheckedIndexedAccess`, so array and regex-capture accesses are `T | undefined`. Assert with `!` where a value is known-present (e.g. `lines[i]!`, `m[2]!`, `open[1]!`, `tasks[0]!`), matching the existing style in `task-parser.ts`/`task-count.ts`. Snippets below already include these.
+- **Custom status scope:** `statusChar` is a **single UTF-16 code unit** — Obsidian theme/custom statuses (ASCII-ish, e.g. `>`, `!`, `?`, `b`) map to `'other'`. True multi-code-unit Unicode/emoji statuses are **out of scope for MVP** (would need `u`-flag regexes); do not add them here.
 - Run a single test file with `npx vitest run <path>`.
-- Every commit message ends with:
-  `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`
+- **Commit attribution:** add whatever trailer your executor requires. The repo history uses a `Co-Authored-By:` line; none is hard-coded in this plan. The `git commit` examples below omit it — append your environment's trailer.
 
 ---
 
@@ -93,7 +94,7 @@ describe('extractTasks — basic', () => {
 
 	it('strips a trailing CR from raw', () => {
 		const tasks = extractTasks('- [ ] windows\r\n- [/] going');
-		expect(tasks[0].raw).toBe('- [ ] windows');
+		expect(tasks[0]!.raw).toBe('- [ ] windows');
 		expect(tasks[1]).toMatchObject({ statusChar: '/', status: 'inProgress', text: 'going' });
 	});
 });
@@ -143,16 +144,16 @@ export function extractTasks(markdown: string): ExtractedTask[] {
 	const lines = markdown.split('\n');
 	const tasks: ExtractedTask[] = [];
 	for (let i = 0; i < lines.length; i++) {
-		const raw = lines[i].replace(/\r$/, '');
+		const raw = lines[i]!.replace(/\r$/, '');
 		const m = TASK_RE.exec(raw);
 		if (!m) continue;
-		const statusChar = m[2];
+		const statusChar = m[2]!;
 		tasks.push({
 			line: i,
 			raw,
 			statusChar,
 			status: statusFromChar(statusChar),
-			text: m[4].trim(),
+			text: m[4]!.trim(),
 		});
 	}
 	return tasks;
@@ -168,9 +169,7 @@ Expected: PASS (all three `extractTasks — basic` cases and `statusFromChar`).
 
 ```bash
 git add src/task-extract.ts src/task-extract.test.ts
-git commit -m "feat: task-extract status model and basic checkbox extraction
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+git commit -m "feat: task-extract status model and basic checkbox extraction"
 ```
 
 ---
@@ -237,7 +236,7 @@ export function extractTasks(markdown: string): ExtractedTask[] {
 	let fence: { char: string; len: number } | null = null;
 
 	for (let i = 0; i < lines.length; i++) {
-		const raw = lines[i].replace(/\r$/, '');
+		const raw = lines[i]!.replace(/\r$/, '');
 
 		if (fence) {
 			// Close only on same marker char, length >= opening, trailing ws only.
@@ -247,19 +246,20 @@ export function extractTasks(markdown: string): ExtractedTask[] {
 		}
 		const open = OPEN_FENCE_RE.exec(raw);
 		if (open) {
-			fence = { char: open[1][0], len: open[1].length };
+			const marker = open[1]!;
+			fence = { char: marker[0]!, len: marker.length };
 			continue;
 		}
 
 		const m = TASK_RE.exec(raw);
 		if (!m) continue;
-		const statusChar = m[2];
+		const statusChar = m[2]!;
 		tasks.push({
 			line: i,
 			raw,
 			statusChar,
 			status: statusFromChar(statusChar),
-			text: m[4].trim(),
+			text: m[4]!.trim(),
 		});
 	}
 	return tasks;
@@ -275,9 +275,7 @@ Expected: PASS (basic + fenced blocks).
 
 ```bash
 git add src/task-extract.ts src/task-extract.test.ts
-git commit -m "feat: skip fenced code blocks in task extraction
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+git commit -m "feat: skip fenced code blocks in task extraction"
 ```
 
 ---
@@ -299,20 +297,20 @@ Append to `src/task-extract.test.ts`:
 ```ts
 describe('extractTasks — due and priority metadata', () => {
 	it('parses the due date and priority and strips them from text', () => {
-		const t = extractTasks('- [ ] Ship it ⏫ 📅 2026-07-10')[0];
+		const t = extractTasks('- [ ] Ship it ⏫ 📅 2026-07-10')[0]!;
 		expect(t.text).toBe('Ship it');
 		expect(t.due).toBe('2026-07-10');
 		expect(t.priority).toBe('high');
 	});
 
 	it('takes due only from the calendar emoji, not scheduled', () => {
-		const t = extractTasks('- [ ] Prep ⏳ 2026-07-08 📅 2026-07-20')[0];
+		const t = extractTasks('- [ ] Prep ⏳ 2026-07-08 📅 2026-07-20')[0]!;
 		expect(t.due).toBe('2026-07-20');
 		expect(t.text).toBe('Prep');
 	});
 
 	it('leaves plain tasks without due/priority', () => {
-		const t = extractTasks('- [ ] Just a task #tag')[0];
+		const t = extractTasks('- [ ] Just a task #tag')[0]!;
 		expect(t.text).toBe('Just a task #tag');
 		expect(t.due).toBeUndefined();
 		expect(t.priority).toBeUndefined();
@@ -366,8 +364,8 @@ function parseMeta(body: string): { text: string; due?: string; priority?: Prior
 Then change the `tasks.push({...})` call inside `extractTasks` to use `parseMeta`:
 
 ```ts
-		const statusChar = m[2];
-		const meta = parseMeta(m[4]);
+		const statusChar = m[2]!;
+		const meta = parseMeta(m[4]!);
 		tasks.push({
 			line: i,
 			raw,
@@ -388,9 +386,7 @@ Expected: PASS (all extractor describe blocks).
 
 ```bash
 git add src/task-extract.ts src/task-extract.test.ts
-git commit -m "feat: parse due/priority and clean display text in task extraction
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+git commit -m "feat: parse due/priority and clean display text in task extraction"
 ```
 
 ---
@@ -426,6 +422,9 @@ describe('findStatusSpan', () => {
 	it('returns null for non-checkbox lines', () => {
 		expect(findStatusSpan('- a bullet')).toBeNull();
 		expect(findStatusSpan('plain text [x]')).toBeNull();
+	});
+	it('anchors to the checkbox, not a later bracket in the body', () => {
+		expect(findStatusSpan('- [ ] task with [link]')).toEqual({ start: 3, end: 4 });
 	});
 });
 
@@ -466,6 +465,13 @@ describe('applyStatusToLine', () => {
 	it('aborts when the matched line is not a checkbox', () => {
 		expect(applyStatusToLine('plain line', 0, 'plain line', 'x')).toEqual({ ok: false });
 	});
+
+	it('edits only the checkbox status when the body contains brackets', () => {
+		const content = '- [ ] task with [link]';
+		const r = applyStatusToLine(content, 0, '- [ ] task with [link]', 'x');
+		expect(r.ok).toBe(true);
+		expect(r.content).toBe('- [x] task with [link]');
+	});
 });
 ```
 
@@ -493,8 +499,8 @@ const CHECKBOX_RE = /^([ \t]*[-*+] \[)([^\]])(\] )/;
 export function findStatusSpan(lineText: string): StatusSpan | null {
 	const m = CHECKBOX_RE.exec(lineText);
 	if (!m) return null;
-	const start = m[1].length;
-	return { start, end: start + m[2].length };
+	const start = m[1]!.length;
+	return { start, end: start + m[2]!.length };
 }
 
 /** MVP toggle: `x`/`X` → space; every other status char → `x`. */
@@ -555,9 +561,7 @@ Expected: typecheck + lint clean (pre-existing sentence-case warnings only), all
 
 ```bash
 git add src/task-write.ts src/task-write.test.ts
-git commit -m "feat: task-write status span, done<->todo toggle, EOL-safe edit
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+git commit -m "feat: task-write status span, done<->todo toggle, EOL-safe edit"
 ```
 
 ---
