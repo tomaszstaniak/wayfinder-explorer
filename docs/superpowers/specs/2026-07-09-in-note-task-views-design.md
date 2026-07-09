@@ -75,35 +75,64 @@ interface ExtractedTask {
 - Matches real checkboxes only: `^[ \t]*[-*+] \[(.)\] ` — the same shape used
   by `task-count.ts`, but capturing the status character (any single char),
   not just open ones.
-- **Skips fenced code blocks** (track ` ``` ` / `~~~` fences) so checkboxes in
-  code samples (e.g. crossgate plans) are not treated as tasks.
+- **Skips fenced code blocks.** Fence detection must be exact: an opening
+  fence is ` ``` ` or `~~~` with **up to three leading spaces**, and the block
+  closes only on a fence of the **same marker character and at least the same
+  length**. This avoids false toggles inside indented or longer fences (e.g.
+  a ` ```` ` block containing ` ``` `).
 - `text` is the line with the checkbox marker removed and trailing Tasks emoji
   metadata stripped for display; `raw` keeps the untouched original.
 - Parses `📅 YYYY-MM-DD` → `due` and the five priority emoji → `priority` for
   display chips. Other emoji are left in/stripped as needed but not modeled in
   MVP.
 - **Status mapping:** ` ` → todo, `x`/`X` → done, `/` → inProgress, `-` →
-  cancelled, anything else → other. If the Tasks plugin is installed, its
-  `statusSettings` provide group **labels**; the core four are the fallback.
+  cancelled, anything else → other. Group **labels** use built-in fallbacks
+  ("Todo", "In Progress", "Done", "Cancelled") — sufficient for milestone 1.
+  Reading the Tasks plugin's `statusSettings` for nicer labels is a
+  **best-effort stretch (MVP-plus), never required**; surfaces 1/2 must work
+  fully without the Tasks plugin installed.
 
 ## Write-back (`task-write.ts`)
 
-Pure core, explicit and non-fuzzy:
+Two rules dominate this section: **never normalize line endings**, and
+**prefer the live editor buffer over the saved file** so we don't lag behind
+or fight unsaved edits.
+
+### Pure core — EOL-preserving, non-fuzzy
+
+Do **not** `split('\n')` / `join('\n')` (that normalizes CRLF and loses exact
+bytes). Instead replace the single status character by character offset:
 
 ```
 applyStatusToLine(content, line, expectedRaw, newChar):
-  split content into lines
-  if lines[line] !== expectedRaw  → return { ok: false }   // no fuzzy matching
-  replace the status char in lines[line] with newChar
-  return { ok: true, content: lines.join('\n') }
+  walk `content` counting '\n' to find the start offset of `line`
+  lineEnd = next '\n' (or end); lineText = content[start..lineEnd]
+           with a single trailing '\r' stripped for comparison only
+  if lineText !== expectedRaw            → { ok: false }   // no fuzzy matching
+  bracket = index of "[" within lineText
+  offset  = start + bracket + 1           // the status char between [ ]
+  return { ok: true,
+           content: content[0..offset] + newChar + content[offset+1..] }
 ```
 
+This changes exactly one character and preserves every original line ending
+and all surrounding text.
+
+### Source selection — editor buffer first
+
 `toggleTaskStatus(app, file, task)`:
-1. Read the current file content.
-2. Compare `lines[task.line] === task.raw`. If not equal → **abort**,
-   re-extract (so the view refreshes to reality), and show a Notice. No write.
-3. Otherwise compute the next status char and write via `vault.process`
-   (atomic read-modify-write).
+1. If the file is open in a `MarkdownView`, operate on its **editor**:
+   verify `editor.getLine(task.line) === task.raw` (EOL-free by construction),
+   then `editor.replaceRange(newChar, {line, ch: bracket+1}, {line, ch:
+   bracket+2})`. This edits the live buffer, preserves EOL, and never fights
+   unsaved state.
+2. Otherwise (no open editor) read the file, run `applyStatusToLine`, and if
+   `ok` write via `vault.process` (atomic read-modify-write).
+3. On any mismatch (`ok: false` or `getLine` ≠ `raw`) → **abort**, re-extract
+   so the view refreshes to reality, and show a Notice. No write.
+
+The **footer** always operates on its own CodeMirror document directly (it *is*
+the editor), using the same line-verify + single-char replace.
 
 **Toggle logic (MVP): done ↔ todo, binary.**
 - `x` / `X` → ` ` (space)
@@ -129,8 +158,12 @@ requires a dedicated UX control, which is out of scope here.
 - `ItemView` with a dedicated view type; opened via a ribbon icon and a
   command.
 - Tracks the **active note**; re-extracts and re-renders on `file-open`,
-  `active-leaf-change`, and `metadata`/vault `changed`, debounced.
-- Reads note content via `cachedRead`.
+  `active-leaf-change`, `editor-change`, and `metadata`/vault `changed`,
+  debounced.
+- **Extraction source:** when following the active editor, extract from the
+  live buffer — `MarkdownView.editor.getValue()` — so the list reflects
+  unsaved edits. Fall back to `cachedRead` only when no editor buffer is
+  available (e.g. the active leaf is not a Markdown editor).
 - Uses `renderTaskList` with `onToggle`/`onJump` wired to `task-write` and a
   jump helper.
 
@@ -144,7 +177,9 @@ Two commands that insert a Tasks-native ` ```tasks ` block at the cursor:
   sorted) suitable for a top-level dashboard page.
 
 These use the Tasks plugin's renderer and therefore require it; the sidebar,
-footer, and extractor do not.
+footer, and extractor do not. **Missing-plugin behavior:** if the Tasks plugin
+is absent or disabled, still insert the block, but show a Notice that
+rendering the block requires the Tasks plugin.
 
 ## Footer (`task-footer.ts`) — build last
 
@@ -159,11 +194,15 @@ footer, and extractor do not.
 
 ## Settings (under the existing "Tasks" section)
 
-- **Tasks sidebar** (on/off) — enables/disables the whole pane surface
-  (ribbon icon + registration). When off, the pane is not available; the
-  command may either be hidden or open with an explanatory Notice
-  (decided at implementation).
-- **Task footer in notes** (on/off) — the CodeMirror footer.
+Views and the editor extension are **registered at plugin load** (the usual
+Obsidian lifecycle). Settings gate *behavior*, not registration:
+
+- **Tasks sidebar** (on/off) — controls **ribbon-icon visibility and whether
+  the pane opens/renders**. When off, the ribbon icon is hidden and the pane
+  does not render; the open command may be hidden or open with an explanatory
+  Notice (decided at implementation). The view type stays registered.
+- **Task footer in notes** (on/off) — the footer extension stays registered;
+  the setting controls whether it renders anything.
 - Query-block commands are always available (no toggle).
 
 ## Error handling
@@ -178,10 +217,14 @@ footer, and extractor do not.
 ## Testing
 
 Pure, unit-tested:
-- `extractTasks`: statuses, emoji parsing (due/priority), code-fence skipping,
-  indentation, document order, non-task lines ignored.
+- `extractTasks`: statuses, emoji parsing (due/priority), indentation,
+  document order, non-task lines ignored, and **fence exactness** (checkboxes
+  inside ` ``` `/`~~~` blocks skipped; a longer ` ```` ` fence not closed by a
+  shorter ` ``` `; up-to-three-space-indented fences honored).
 - Status mapping and next-status (`done ↔ todo`) logic.
-- `applyStatusToLine`: success, and the mismatch/abort path (no write).
+- `applyStatusToLine`: success, the mismatch/abort path (no write), and
+  **EOL preservation** — a CRLF document round-trips with only the status
+  character changed and all `\r\n` intact.
 
 DOM (jsdom):
 - `renderTaskList`: grouping + counts, chips, checkbox reflects done-ness,
