@@ -472,6 +472,15 @@ describe('applyStatusToLine', () => {
 		expect(r.ok).toBe(true);
 		expect(r.content).toBe('- [x] task with [link]');
 	});
+
+	it('aborts on a negative line index', () => {
+		expect(applyStatusToLine('- [ ] a', -1, '- [ ] a', 'x')).toEqual({ ok: false });
+	});
+
+	it('aborts when newChar is not exactly one character', () => {
+		expect(applyStatusToLine('- [ ] a', 0, '- [ ] a', 'xx')).toEqual({ ok: false });
+		expect(applyStatusToLine('- [ ] a', 0, '- [ ] a', '')).toEqual({ ok: false });
+	});
 });
 ```
 
@@ -524,6 +533,9 @@ export function applyStatusToLine(
 	expectedRaw: string,
 	newChar: string
 ): ApplyResult {
+	// Guards: negative line would fall through to line 0; a multi-char
+	// replacement would widen the checkbox.
+	if (line < 0 || newChar.length !== 1) return { ok: false };
 	let start = 0;
 	for (let i = 0; i < line; i++) {
 		const nl = content.indexOf('\n', start);
