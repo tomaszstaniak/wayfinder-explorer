@@ -70,3 +70,25 @@ describe('extractTasks — fenced code blocks', () => {
 		expect(extractTasks(md).map((t) => t.text)).toEqual(['outside']);
 	});
 });
+
+describe('extractTasks — due and priority metadata', () => {
+	it('parses the due date and priority and strips them from text', () => {
+		const t = extractTasks('- [ ] Ship it ⏫ 📅 2026-07-10')[0]!;
+		expect(t.text).toBe('Ship it');
+		expect(t.due).toBe('2026-07-10');
+		expect(t.priority).toBe('high');
+	});
+
+	it('takes due only from the calendar emoji, not scheduled', () => {
+		const t = extractTasks('- [ ] Prep ⏳ 2026-07-08 📅 2026-07-20')[0]!;
+		expect(t.due).toBe('2026-07-20');
+		expect(t.text).toBe('Prep');
+	});
+
+	it('leaves plain tasks without due/priority', () => {
+		const t = extractTasks('- [ ] Just a task #tag')[0]!;
+		expect(t.text).toBe('Just a task #tag');
+		expect(t.due).toBeUndefined();
+		expect(t.priority).toBeUndefined();
+	});
+});
