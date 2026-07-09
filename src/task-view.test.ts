@@ -32,7 +32,7 @@ describe('renderTaskList — structure', () => {
 			],
 			handlers
 		);
-		const groups = [...container.querySelectorAll('.wayfinder-task-group')];
+		const groups = Array.from(container.querySelectorAll('.wayfinder-task-group'));
 		expect(groups).toHaveLength(2);
 		// todo group comes before done group
 		const labels = groups.map((g) => g.querySelector('.wayfinder-task-group-label')!.textContent);
@@ -44,7 +44,7 @@ describe('renderTaskList — structure', () => {
 	it('renders one row per task with its text', () => {
 		const container = document.createElement('div');
 		renderTaskList(container, [task({ text: 'first' }), task({ text: 'second' })], handlers);
-		const rows = [...container.querySelectorAll('.wayfinder-task-row')];
+		const rows = Array.from(container.querySelectorAll('.wayfinder-task-row'));
 		expect(rows.map((r) => r.querySelector('.wayfinder-task-text')!.textContent)).toEqual([
 			'first',
 			'second',
@@ -66,7 +66,9 @@ describe('renderTaskList — structure', () => {
 			[task({ text: 'open' }), task({ text: 'closed', status: 'done', statusChar: 'x' })],
 			handlers
 		);
-		const boxes = [...container.querySelectorAll<HTMLInputElement>('input.wayfinder-task-checkbox')];
+		const boxes = Array.from(
+			container.querySelectorAll<HTMLInputElement>('input.wayfinder-task-checkbox')
+		);
 		expect(boxes.map((b) => b.checked)).toEqual([false, true]);
 	});
 
@@ -77,9 +79,41 @@ describe('renderTaskList — structure', () => {
 			[task({ text: 'dated', due: '2026-07-10', priority: 'high' }), task({ text: 'plain' })],
 			handlers
 		);
-		const rows = [...container.querySelectorAll('.wayfinder-task-row')];
+		const rows = Array.from(container.querySelectorAll('.wayfinder-task-row'));
 		expect(rows[0]!.querySelector('.wayfinder-task-due')!.textContent).toBe('2026-07-10');
 		expect(rows[0]!.querySelector('.wayfinder-task-priority')!.textContent).toBe('High');
 		expect(rows[1]!.querySelector('.wayfinder-task-chip')).toBeNull();
+	});
+});
+
+describe('renderTaskList — interactivity and re-render', () => {
+	it('calls onToggle with the task when its checkbox is clicked', () => {
+		const container = document.createElement('div');
+		const onToggle = vi.fn();
+		const t = task({ text: 'toggle me' });
+		renderTaskList(container, [t], { onToggle, onJump: vi.fn() });
+		container.querySelector<HTMLInputElement>('input.wayfinder-task-checkbox')!.click();
+		expect(onToggle).toHaveBeenCalledTimes(1);
+		expect(onToggle).toHaveBeenCalledWith(t);
+	});
+
+	it('calls onJump with the task when its text is clicked', () => {
+		const container = document.createElement('div');
+		const onJump = vi.fn();
+		const t = task({ text: 'jump to me' });
+		renderTaskList(container, [t], { onToggle: vi.fn(), onJump });
+		container.querySelector<HTMLButtonElement>('.wayfinder-task-text')!.click();
+		expect(onJump).toHaveBeenCalledTimes(1);
+		expect(onJump).toHaveBeenCalledWith(t);
+	});
+
+	it('replaces prior content on re-render (no stale rows)', () => {
+		const container = document.createElement('div');
+		renderTaskList(container, [task({ text: 'one' }), task({ text: 'two' })], handlers);
+		expect(container.querySelectorAll('.wayfinder-task-row')).toHaveLength(2);
+		renderTaskList(container, [task({ text: 'only' })], handlers);
+		const rows = Array.from(container.querySelectorAll('.wayfinder-task-row'));
+		expect(rows).toHaveLength(1);
+		expect(rows[0]!.querySelector('.wayfinder-task-text')!.textContent).toBe('only');
 	});
 });
