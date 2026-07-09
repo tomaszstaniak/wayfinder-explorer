@@ -43,3 +43,30 @@ describe('extractTasks — basic', () => {
 		expect(tasks[1]).toMatchObject({ statusChar: '/', status: 'inProgress', text: 'going' });
 	});
 });
+
+describe('extractTasks — fenced code blocks', () => {
+	it('skips checkboxes inside ``` and ~~~ fences', () => {
+		const md = [
+			'- [ ] real',
+			'```',
+			'- [ ] inside backticks',
+			'```',
+			'~~~',
+			'- [ ] inside tildes',
+			'~~~',
+			'- [x] also real',
+		].join('\n');
+		const tasks = extractTasks(md);
+		expect(tasks.map((t) => t.text)).toEqual(['real', 'also real']);
+	});
+
+	it('does not close a longer fence on a shorter one', () => {
+		const md = ['````', '```', '- [ ] still inside', '````', '- [ ] outside'].join('\n');
+		expect(extractTasks(md).map((t) => t.text)).toEqual(['outside']);
+	});
+
+	it('honors fences indented up to three spaces', () => {
+		const md = ['   ```', '- [ ] inside indented fence', '   ```', '- [ ] outside'].join('\n');
+		expect(extractTasks(md).map((t) => t.text)).toEqual(['outside']);
+	});
+});

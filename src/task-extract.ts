@@ -28,11 +28,30 @@ export function statusFromChar(ch: string): TaskStatus {
 // Capture: (1) prefix up to and incl. "[", (2) status char, (3) "] ", (4) body.
 const TASK_RE = /^([ \t]*[-*+] \[)([^\]])(\] )(.*)$/;
 
+// Opening fence: ``` or ~~~ (3+), up to three leading spaces.
+const OPEN_FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
+
 export function extractTasks(markdown: string): ExtractedTask[] {
 	const lines = markdown.split('\n');
 	const tasks: ExtractedTask[] = [];
+	let fence: { char: string; len: number } | null = null;
+
 	for (let i = 0; i < lines.length; i++) {
 		const raw = lines[i]!.replace(/\r$/, '');
+
+		if (fence) {
+			// Close only on same marker char, length >= opening, trailing ws only.
+			const close = new RegExp(`^ {0,3}(\\${fence.char}{${fence.len},})\\s*$`);
+			if (close.test(raw)) fence = null;
+			continue;
+		}
+		const open = OPEN_FENCE_RE.exec(raw);
+		if (open) {
+			const marker = open[1]!;
+			fence = { char: marker[0]!, len: marker.length };
+			continue;
+		}
+
 		const m = TASK_RE.exec(raw);
 		if (!m) continue;
 		const statusChar = m[2]!;
