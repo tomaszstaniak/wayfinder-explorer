@@ -56,7 +56,9 @@ export default class WayfinderPlugin extends Plugin {
 		this.addSettingTab(new WayfinderSettingTab(this.app, this, this.store));
 
 		this.registerView(VIEW_TYPE_TASKS, (leaf) => new WayfinderTasksView(leaf, this));
-		this.syncTasksSidebar();
+		// Defer to layout-ready so a leaf restored from the saved layout exists
+		// before we decide to keep or detach it.
+		this.app.workspace.onLayoutReady(() => this.syncTasksSidebar());
 
 		// Rescan open-task counts when the feature is switched on.
 		let taskCountsOn = this.store.state.settings.showTaskCounts;
@@ -218,14 +220,20 @@ export default class WayfinderPlugin extends Plugin {
 	/** Apply the current showTaskSidebar setting to ribbon + open leaves. */
 	syncTasksSidebar(): void {
 		const on = this.store.state.settings.showTaskSidebar;
-		if (on && !this.tasksRibbonEl) {
+		if (!on) {
+			if (this.tasksRibbonEl) {
+				this.tasksRibbonEl.remove();
+				this.tasksRibbonEl = null;
+			}
+			// Always detach — a leaf may have been restored from the saved
+			// layout even when the ribbon was never created (setting off at load).
+			this.app.workspace.detachLeavesOfType(VIEW_TYPE_TASKS);
+			return;
+		}
+		if (!this.tasksRibbonEl) {
 			this.tasksRibbonEl = this.addRibbonIcon('list-checks', 'Wayfinder tasks', () =>
 				void this.activateTasksView()
 			);
-		} else if (!on && this.tasksRibbonEl) {
-			this.tasksRibbonEl.remove();
-			this.tasksRibbonEl = null;
-			this.app.workspace.detachLeavesOfType(VIEW_TYPE_TASKS);
 		}
 	}
 

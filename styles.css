@@ -74,7 +74,7 @@
 	font-size: var(--font-smaller);
 	color: var(--text-muted);
 	text-transform: uppercase;
-	letter-spacing: 0.03em;
+	letter-spacing: 0;
 	margin-bottom: var(--size-2-2);
 }
 .wayfinder-task-row { display: flex; align-items: center; gap: var(--size-2-2); padding: 2px 0; }
