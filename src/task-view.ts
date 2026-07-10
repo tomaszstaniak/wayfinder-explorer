@@ -70,11 +70,20 @@ function renderRow(
 	checkbox.checked = task.status === 'done';
 	checkbox.addEventListener('click', () => handlers.onToggle(task));
 
-	const textEl = doc.createElement('button');
-	textEl.type = 'button';
+	// A <div> (not <button>) so it inherits none of the theme's button chrome;
+	// role + tabindex + key handler keep it keyboard-operable.
+	const textEl = doc.createElement('div');
 	textEl.className = 'wayfinder-task-text';
+	textEl.setAttribute('role', 'button');
+	textEl.setAttribute('tabindex', '0');
 	textEl.textContent = task.text;
 	textEl.addEventListener('click', () => handlers.onJump(task));
+	textEl.addEventListener('keydown', (ev) => {
+		if (ev.key === 'Enter' || ev.key === ' ') {
+			ev.preventDefault();
+			handlers.onJump(task);
+		}
+	});
 
 	row.append(checkbox, textEl);
 

@@ -77,17 +77,30 @@
 	letter-spacing: 0;
 	margin-bottom: var(--size-2-2);
 }
-.wayfinder-task-row { display: flex; align-items: center; gap: var(--size-2-2); padding: 2px 0; }
-.wayfinder-task-text {
-	background: none;
-	border: none;
-	padding: 0;
-	text-align: left;
-	color: var(--text-normal);
-	cursor: pointer;
-	flex: 1;
+/* Behaves like a native nav item: subtle row-wide hover background, no
+   underline or accent-color text; small UI font. */
+.wayfinder-task-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	padding: var(--size-2-1) var(--size-2-2);
+	border-radius: var(--radius-s);
 }
-.wayfinder-task-text:hover { color: var(--text-accent); }
+.wayfinder-task-row:hover { background: var(--background-modifier-hover); }
+.wayfinder-task-text {
+	flex: 1;
+	min-width: 0;
+	text-align: left;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	cursor: var(--cursor);
+}
+.wayfinder-task-row:hover .wayfinder-task-text { color: var(--text-normal); }
+.wayfinder-task-text:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+	border-radius: var(--radius-s);
+}
 .wayfinder-task-chip {
 	font-size: var(--font-smallest);
 	color: var(--text-muted);

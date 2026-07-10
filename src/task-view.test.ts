@@ -51,12 +51,22 @@ describe('renderTaskList — structure', () => {
 		]);
 	});
 
-	it('renders the task text as a keyboard-focusable button', () => {
+	it('renders the task text as a keyboard-focusable button role', () => {
 		const container = document.createElement('div');
 		renderTaskList(container, [task({ text: 'clickable' })], handlers);
 		const btn = container.querySelector('.wayfinder-task-text')!;
-		expect(btn.tagName).toBe('BUTTON');
-		expect(btn.getAttribute('type')).toBe('button');
+		expect(btn.getAttribute('role')).toBe('button');
+		expect(btn.getAttribute('tabindex')).toBe('0');
+	});
+
+	it('invokes onJump when Enter is pressed on the task text', () => {
+		const container = document.createElement('div');
+		const onJump = vi.fn();
+		const t = task({ text: 'via keyboard' });
+		renderTaskList(container, [t], { onToggle: vi.fn(), onJump });
+		const textEl = container.querySelector<HTMLElement>('.wayfinder-task-text')!;
+		textEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+		expect(onJump).toHaveBeenCalledWith(t);
 	});
 
 	it('checks the checkbox only for done tasks', () => {
@@ -102,7 +112,7 @@ describe('renderTaskList — interactivity and re-render', () => {
 		const onJump = vi.fn();
 		const t = task({ text: 'jump to me' });
 		renderTaskList(container, [t], { onToggle: vi.fn(), onJump });
-		container.querySelector<HTMLButtonElement>('.wayfinder-task-text')!.click();
+		container.querySelector<HTMLElement>('.wayfinder-task-text')!.click();
 		expect(onJump).toHaveBeenCalledTimes(1);
 		expect(onJump).toHaveBeenCalledWith(t);
 	});
