@@ -43,7 +43,7 @@
 - Create `src/task-sidebar.ts` — `VIEW_TYPE_TASKS`, `WayfinderTasksView extends ItemView`.
 - Modify `src/main.ts` — register view, ribbon, command, settings wiring, activate/detach helpers.
 - Modify `src/settings.ts` — "Tasks sidebar" toggle under the Tasks section.
-- Modify `src/types.ts` + `src/store.ts` — `showTaskSidebar` setting (default true).
+- Modify `src/types.ts` + `src/store.ts` — `showTaskSidebar` setting (default false).
 - Modify `styles.css` — minimal pane styles for `wayfinder-task-*`.
 
 ---
@@ -201,6 +201,8 @@ export async function toggleTaskStatus(
 			return 'aborted';
 		}
 		const span = findStatusSpan(line);
+		// Defensive: `line === task.raw` already matched a checkbox line, so a
+		// null span is unreachable in practice — bail silently rather than edit.
 		if (!span) return 'aborted';
 		env.editor.replaceRange(task.line, span.start, span.end, newChar);
 		return 'edited-buffer';
@@ -243,7 +245,7 @@ git commit -m "feat: pure toggleTaskStatus with injectable editor/disk IO"
 - Produces:
   - `const VIEW_TYPE_TASKS = 'wayfinder-tasks'`
   - `class WayfinderTasksView extends ItemView` with `refresh(): void`
-  - `WayfinderData.settings.showTaskSidebar: boolean` (default `true`)
+  - `WayfinderData.settings.showTaskSidebar: boolean` (default `false`)
 
 - [ ] **Step 1: Add the setting (types + store + default)**
 
@@ -352,7 +354,9 @@ export class WayfinderTasksView extends ItemView {
 	/** Prefer the live editor buffer for THIS file (found by path), else read disk. */
 	private async activeSource(): Promise<{ file: TFile | null; text: string }> {
 		const ws = this.plugin.app.workspace;
-		const file = ws.getActiveViewOfType(MarkdownView)?.file ?? ws.getActiveFile();
+		// Only Markdown notes; never cachedRead an arbitrary (e.g. binary) file.
+		const candidate = ws.getActiveViewOfType(MarkdownView)?.file ?? ws.getActiveFile();
+		const file = candidate?.extension === 'md' ? candidate : null;
 		if (!file) return { file: null, text: '' };
 		const view = markdownViewForPath(this.plugin.app, file.path);
 		if (view) return { file, text: view.editor.getValue() };
@@ -531,6 +535,7 @@ Reload the plugin (toggle off/on in Community plugins). The sidebar defaults **o
 
 1. A **ribbon icon** appears; clicking it opens the **Tasks in note** pane in the right sidebar.
 2. Open a note with tasks → grouped list (Todo/In Progress/Done/…) with counts renders; a note with none shows "No tasks in this note."
+   - Open a **non-Markdown file** (e.g. an image/PDF) → the pane shows "No note open." (Verifies the `.md` guard — no `cachedRead` of arbitrary files.)
 3. Switch notes / type a new `- [ ] x` line → the pane updates within ~150 ms.
 4. **Click into the pane, then** click a task's **checkbox** → the note's line flips (`- [ ]` ↔ `- [x]`) via the still-open editor (not the disk path), and the pane regroups. (Verifies editor-by-path.)
 5. Click a task's **text** → the note is revealed in its Markdown tab (never inside the pane) and moves to that line.
