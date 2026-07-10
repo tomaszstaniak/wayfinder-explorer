@@ -215,6 +215,15 @@ export class WayfinderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName('Tasks sidebar')
+			.setDesc('Show a sidebar pane listing the current note’s tasks, with a ribbon icon to open it.')
+			.addToggle((t) =>
+				t
+					.setValue(s.showTaskSidebar)
+					.onChange((v) => this.store.updateSettings({ showTaskSidebar: v }))
+			);
+
+		new Setting(containerEl)
 			.setName('Quick add task')
 			.setDesc(
 				'One-line capture that compiles to a Tasks-plugin line: @date (today, friday, 3d, 2026-07-15), !priority (high, !!!, 2), *recurrence (weekly). Also accepts an existing "- [ ]" line to augment it. Or write the shorthand directly in a note and run "Convert line to task (shorthand)" (bind either command to a hotkey).'

@@ -18,15 +18,16 @@ const STALE = 'Task changed since it was listed; refreshing.';
 describe('toggleTaskStatus — editor path', () => {
 	it('replaces the status span in the buffer when the line matches', async () => {
 		const replaceRange = vi.fn();
+		const process = vi.fn();
 		const env: ToggleEnv = {
 			editor: { getLine: () => '- [ ] a', replaceRange },
-			disk: { process: vi.fn() },
+			disk: { process },
 			notify: vi.fn(),
 		};
 		const outcome = await toggleTaskStatus(env, task({ text: 'a' }));
 		expect(outcome).toBe('edited-buffer');
 		expect(replaceRange).toHaveBeenCalledWith(0, 3, 4, 'x');
-		expect(env.disk.process).not.toHaveBeenCalled();
+		expect(process).not.toHaveBeenCalled();
 	});
 
 	it('unchecks a done task (x -> space)', async () => {

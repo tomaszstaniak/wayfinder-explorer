@@ -9,6 +9,7 @@ import { WayfinderSettingTab } from './settings';
 import { Store } from './store';
 import { StyleManager } from './style-manager';
 import { TaskModal } from './task-modal';
+import { VIEW_TYPE_TASKS, WayfinderTasksView } from './task-sidebar';
 import { shorthandToTaskLine } from './task-parser';
 import { countOpenTasksInText, rollUpToFolders } from './task-count';
 
@@ -54,6 +55,9 @@ export default class WayfinderPlugin extends Plugin {
 		await this.controller.start();
 		this.addSettingTab(new WayfinderSettingTab(this.app, this, this.store));
 
+		this.registerView(VIEW_TYPE_TASKS, (leaf) => new WayfinderTasksView(leaf, this));
+		this.syncTasksSidebar();
+
 		// Rescan open-task counts when the feature is switched on.
 		let taskCountsOn = this.store.state.settings.showTaskCounts;
 		this.store.subscribe(() => {
@@ -62,6 +66,7 @@ export default class WayfinderPlugin extends Plugin {
 				taskCountsOn = on;
 				void this.scanTaskCounts();
 			}
+			this.syncTasksSidebar();
 		});
 		if (taskCountsOn) void this.scanTaskCounts();
 
@@ -137,6 +142,11 @@ export default class WayfinderPlugin extends Plugin {
 			name: 'Convert line to task (shorthand)',
 			editorCallback: (editor) => this.convertLinesToTasks(editor),
 		});
+		this.addCommand({
+			id: 'open-tasks-view',
+			name: 'Open tasks in note (sidebar)',
+			callback: () => void this.activateTasksView(),
+		});
 		this.registerEvent(
 			this.app.workspace.on('file-menu', (menu, file) => {
 				addWayfinderMenu(menu, file, {
@@ -201,6 +211,36 @@ export default class WayfinderPlugin extends Plugin {
 			if (editor) editor.replaceSelection(line + '\n');
 			else new Notice('Wayfinder: open a note to insert the task.');
 		}).open();
+	}
+
+	private tasksRibbonEl: HTMLElement | null = null;
+
+	/** Apply the current showTaskSidebar setting to ribbon + open leaves. */
+	syncTasksSidebar(): void {
+		const on = this.store.state.settings.showTaskSidebar;
+		if (on && !this.tasksRibbonEl) {
+			this.tasksRibbonEl = this.addRibbonIcon('list-checks', 'Wayfinder tasks', () =>
+				void this.activateTasksView()
+			);
+		} else if (!on && this.tasksRibbonEl) {
+			this.tasksRibbonEl.remove();
+			this.tasksRibbonEl = null;
+			this.app.workspace.detachLeavesOfType(VIEW_TYPE_TASKS);
+		}
+	}
+
+	async activateTasksView(): Promise<void> {
+		if (!this.store.state.settings.showTaskSidebar) {
+			new Notice('Enable the Tasks sidebar in Wayfinder settings first.');
+			return;
+		}
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(VIEW_TYPE_TASKS)[0] ?? null;
+		if (!leaf) {
+			leaf = workspace.getRightLeaf(false);
+			await leaf?.setViewState({ type: VIEW_TYPE_TASKS, active: true });
+		}
+		if (leaf) await workspace.revealLeaf(leaf);
 	}
 
 	openParaPreset(): void {

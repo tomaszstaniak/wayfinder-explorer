@@ -64,3 +64,35 @@
 	margin-top: var(--size-4-2);
 	line-height: 1.5;
 }
+
+.wayfinder-tasks-pane { padding: var(--size-4-2); }
+.wayfinder-task-group { margin-bottom: var(--size-4-3); }
+.wayfinder-task-group-header {
+	display: flex;
+	gap: var(--size-2-2);
+	align-items: baseline;
+	font-size: var(--font-smaller);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	margin-bottom: var(--size-2-2);
+}
+.wayfinder-task-row { display: flex; align-items: center; gap: var(--size-2-2); padding: 2px 0; }
+.wayfinder-task-text {
+	background: none;
+	border: none;
+	padding: 0;
+	text-align: left;
+	color: var(--text-normal);
+	cursor: pointer;
+	flex: 1;
+}
+.wayfinder-task-text:hover { color: var(--text-accent); }
+.wayfinder-task-chip {
+	font-size: var(--font-smallest);
+	color: var(--text-muted);
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+	padding: 0 5px;
+}
+.wayfinder-task-empty { color: var(--text-faint); font-size: var(--font-smaller); }
