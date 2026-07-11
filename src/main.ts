@@ -12,6 +12,7 @@ import { TaskModal } from './task-modal';
 import { VIEW_TYPE_TASKS, WayfinderTasksView } from './task-sidebar';
 import { shorthandToTaskLine } from './task-parser';
 import { countOpenTasksInText, rollUpToFolders } from './task-count';
+import { TASKS_IN_NOTE_BLOCK, TASKS_DASHBOARD_BLOCK, blockInsertText } from './task-query';
 
 export default class WayfinderPlugin extends Plugin {
 	private styleManager!: StyleManager;
@@ -149,6 +150,16 @@ export default class WayfinderPlugin extends Plugin {
 			name: 'Open tasks in note (sidebar)',
 			callback: () => void this.activateTasksView(),
 		});
+		this.addCommand({
+			id: 'insert-tasks-in-note',
+			name: 'Insert tasks-in-note query block',
+			editorCallback: (editor) => this.insertTasksBlock(editor, TASKS_IN_NOTE_BLOCK),
+		});
+		this.addCommand({
+			id: 'insert-tasks-dashboard',
+			name: 'Insert vault tasks dashboard block',
+			editorCallback: (editor) => this.insertTasksBlock(editor, TASKS_DASHBOARD_BLOCK),
+		});
 		this.registerEvent(
 			this.app.workspace.on('file-menu', (menu, file) => {
 				addWayfinderMenu(menu, file, {
@@ -249,6 +260,25 @@ export default class WayfinderPlugin extends Plugin {
 			await leaf?.setViewState({ type: VIEW_TYPE_TASKS, active: true });
 		}
 		if (leaf) await workspace.revealLeaf(leaf);
+	}
+
+	/** Insert a Tasks block at the cursor; warn if the Tasks plugin can't render it. */
+	private insertTasksBlock(editor: Editor, block: string): void {
+		const cursor = editor.getCursor();
+		const before = editor.getLine(cursor.line).slice(0, cursor.ch);
+		editor.replaceSelection(blockInsertText(block, before));
+		if (!this.isTasksPluginEnabled()) {
+			new Notice(
+				'Wayfinder: inserted a Tasks block, but the Tasks plugin is disabled — it will not render until you enable it.'
+			);
+		}
+	}
+
+	/** Whether the community Tasks plugin is installed and enabled. */
+	private isTasksPluginEnabled(): boolean {
+		const plugins = (this.app as unknown as { plugins?: { enabledPlugins?: Set<string> } })
+			.plugins;
+		return plugins?.enabledPlugins?.has('obsidian-tasks-plugin') ?? false;
 	}
 
 	openParaPreset(): void {
