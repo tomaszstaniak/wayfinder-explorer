@@ -126,5 +126,15 @@ export class WayfinderTasksView extends ItemView {
 		const leaf = markdownViewForPath(this.plugin.app, file.path)?.leaf ?? ws.getLeaf('tab');
 		await leaf.openFile(file, { eState: { line } });
 		await ws.revealLeaf(leaf);
+		// `eState` scroll is ignored when the file was already open, so place the
+		// cursor explicitly — this guarantees the view lands on the task line.
+		const view = leaf.view;
+		if (view instanceof MarkdownView) {
+			const { editor } = view;
+			const target = Math.max(0, Math.min(line, editor.lineCount() - 1));
+			const pos = { line: target, ch: 0 };
+			editor.setCursor(pos);
+			editor.scrollIntoView({ from: pos, to: pos }, true);
+		}
 	}
 }
