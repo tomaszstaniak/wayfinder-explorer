@@ -1,6 +1,6 @@
 # In-Note Task Views — M4: Query-Block Commands — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For implementers:** Execute task-by-task; steps use checkbox (`- [ ]`) syntax for tracking. (If you work under the Superpowers skills, executing-plans covers this flow — but the plan is executor-agnostic.)
 
 **Goal:** Add two command-palette actions that insert a Tasks-plugin ` ```tasks ` block at the cursor — one scoped to the current note, one a vault-wide dashboard — inserting even when the Tasks plugin is absent (with a Notice).
 
@@ -12,6 +12,8 @@
 
 - `minAppVersion` stays `1.7.2`; no new API above that floor. (Commands + `Editor.replaceSelection`/`getCursor`/`getLine` are all well below it.)
 - Confirmed against the **installed Tasks plugin v8.2.2** build: `filter by function` and the `query.file.path` function-scope variable both exist. The current-file filter is exact-match, not substring.
+- **Sort fields: one per line.** The installed parser reads one sort field per `sort by` line; `sort by priority, due` may fail or silently ignore `due`. Use separate `sort by priority` / `sort by due` lines.
+- **Dashboard grouping uses `group by path`** (unambiguously present in the bundle). `group by filename` is prettier but only weakly confirmable from minified code; do not switch to it without a manual GUI test on Tasks 8.2.2.
 - UI copy: sentence case. Proper nouns "Tasks"/"Wayfinder" may trip the `obsidianmd/ui/sentence-case` lint — those are accepted pre-existing false positives, not errors.
 - Wayfinder's engine/sidebar do **not** depend on the Tasks plugin; only these query blocks do (they insert Tasks-native syntax that the Tasks plugin renders).
 
@@ -43,9 +45,9 @@ describe('task-query — block content (locks Tasks 8.2.2 syntax)', () => {
 		);
 	});
 
-	it('builds a vault dashboard block grouped by file and sorted', () => {
+	it('builds a vault dashboard block grouped by path with one sort field per line', () => {
 		expect(TASKS_DASHBOARD_BLOCK).toBe(
-			['```tasks', 'not done', 'group by filename', 'sort by priority, due', '```'].join('\n')
+			['```tasks', 'not done', 'group by path', 'sort by priority', 'sort by due', '```'].join('\n')
 		);
 	});
 });
@@ -87,12 +89,17 @@ export const TASKS_IN_NOTE_BLOCK = [
 	'```',
 ].join('\n');
 
-/** A vault-wide open-tasks dashboard, grouped by file and prioritized. */
+/**
+ * A vault-wide open-tasks dashboard, grouped by path and prioritized.
+ * `group by path` (not `filename`) and one `sort by` field per line are the
+ * forms confirmed against the installed Tasks 8.2.2 parser.
+ */
 export const TASKS_DASHBOARD_BLOCK = [
 	'```tasks',
 	'not done',
-	'group by filename',
-	'sort by priority, due',
+	'group by path',
+	'sort by priority',
+	'sort by due',
 	'```',
 ].join('\n');
 
@@ -100,6 +107,10 @@ export const TASKS_DASHBOARD_BLOCK = [
  * Wrap `block` so it always begins on its own line and ends with a newline.
  * `before` is the current line's text up to the cursor; a fence is only
  * recognized at line start, so prepend a newline when real text precedes it.
+ *
+ * Note: this only guards the text BEFORE the cursor. When the cursor sits
+ * mid-line (`abc|def`), `replaceSelection` leaves the remainder trailing the
+ * block's closing newline (`abc\nBLOCK\ndef`). That is acceptable and expected.
  */
 export function blockInsertText(block: string, before: string): string {
 	const leadingNewline = before.trim().length > 0 ? '\n' : '';
@@ -189,6 +200,7 @@ Expected: 0 errors; 178 tests pass (173 + 5 new); only the pre-existing sentence
 2. On an empty line, run it again → no stray leading blank line.
 3. Run **Insert vault tasks dashboard block** on a scratch page → renders open tasks across the vault, grouped by file.
 4. Disable the Tasks plugin, run either command → the block is still inserted **and** a Notice appears saying it won't render until Tasks is enabled.
+5. Cursor mid-line (`abc|def`), run a command → the remainder trails the block (`abc` / block / `def`). Confirm this is acceptable; it is expected behavior, not a bug.
 
 - [ ] **Step 6: Commit**
 
