@@ -16,9 +16,12 @@ export const TASKS_IN_NOTE_BLOCK = [
  * forms confirmed against the installed Tasks 8.2.2 parser.
  *
  * Kept deliberately lean because Tasks renders every matching task in the
- * whole vault: `limit` caps the row count and hiding the per-row buttons cuts
- * DOM cost — both matter a lot in large/legacy vaults. Users can raise the
- * limit or add `path does not include <folder>` lines to trim legacy areas.
+ * whole vault: `limit` caps the row count while `short mode` and hiding the
+ * per-row buttons/backlinks cut DOM weight — both matter a lot in large/legacy
+ * vaults. Users can raise the limit, drop `short mode`, or add
+ * `path does not include <folder>` lines to trim legacy areas. This block is a
+ * quick helper, not the long-term cross-vault task surface (that will be a
+ * Wayfinder-owned pane using our own extractor + capped rendering).
  */
 export const TASKS_DASHBOARD_BLOCK = [
 	'```tasks',
@@ -27,8 +30,10 @@ export const TASKS_DASHBOARD_BLOCK = [
 	'sort by priority',
 	'sort by due',
 	'limit 100',
+	'short mode',
 	'hide edit button',
 	'hide postpone button',
+	'hide backlinks',
 	'```',
 ].join('\n');
 

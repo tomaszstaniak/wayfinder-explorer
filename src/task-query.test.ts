@@ -22,8 +22,10 @@ describe('task-query — block content (locks Tasks 8.2.2 syntax)', () => {
 				'sort by priority',
 				'sort by due',
 				'limit 100',
+				'short mode',
 				'hide edit button',
 				'hide postpone button',
+				'hide backlinks',
 				'```',
 			].join('\n')
 		);
