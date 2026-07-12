@@ -18,5 +18,14 @@ main.js
 # obsidian
 data.json
 
+# Local planning and exploration notes. Durable state docs stay tracked.
+docs/plans/
+docs/explorations/
+docs/archive/
+docs/superpowers/
+!docs/
+!docs/state/
+!docs/state/**
+
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
