@@ -13,11 +13,19 @@ describe('task-query — block content (locks Tasks 8.2.2 syntax)', () => {
 		);
 	});
 
-	it('builds a vault dashboard block grouped by path with one sort field per line', () => {
+	it('builds a lean vault dashboard block (grouped, sorted, capped, buttons hidden)', () => {
 		expect(TASKS_DASHBOARD_BLOCK).toBe(
-			['```tasks', 'not done', 'group by path', 'sort by priority', 'sort by due', '```'].join(
-				'\n'
-			)
+			[
+				'```tasks',
+				'not done',
+				'group by path',
+				'sort by priority',
+				'sort by due',
+				'limit 100',
+				'hide edit button',
+				'hide postpone button',
+				'```',
+			].join('\n')
 		);
 	});
 });

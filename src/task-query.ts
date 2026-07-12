@@ -14,6 +14,11 @@ export const TASKS_IN_NOTE_BLOCK = [
  * A vault-wide open-tasks dashboard, grouped by path and prioritized.
  * `group by path` (not `filename`) and one `sort by` field per line are the
  * forms confirmed against the installed Tasks 8.2.2 parser.
+ *
+ * Kept deliberately lean because Tasks renders every matching task in the
+ * whole vault: `limit` caps the row count and hiding the per-row buttons cuts
+ * DOM cost — both matter a lot in large/legacy vaults. Users can raise the
+ * limit or add `path does not include <folder>` lines to trim legacy areas.
  */
 export const TASKS_DASHBOARD_BLOCK = [
 	'```tasks',
@@ -21,6 +26,9 @@ export const TASKS_DASHBOARD_BLOCK = [
 	'group by path',
 	'sort by priority',
 	'sort by due',
+	'limit 100',
+	'hide edit button',
+	'hide postpone button',
 	'```',
 ].join('\n');
 
