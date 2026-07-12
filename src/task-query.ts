@@ -1,12 +1,16 @@
 /**
  * Insert a Tasks-plugin query block scoped to the current note.
- * Uses the Tasks 8.2.2 `query` object for an EXACT current-file match
- * (`path includes` would be substring and could over-match).
+ *
+ * Uses the `{{query.file.path}}` placeholder (plain text substitution) rather
+ * than `filter by function`: Tasks 8.2.2 disables JavaScript in queries by
+ * default, so a `by function` filter would error until the user enables
+ * scripting. `path includes` is a substring match (not exact), which is an
+ * acceptable trade-off to keep the inserted block working out of the box.
  */
 export const TASKS_IN_NOTE_BLOCK = [
 	'```tasks',
 	'not done',
-	'filter by function task.file.path === query.file.path',
+	'path includes {{query.file.path}}',
 	'```',
 ].join('\n');
 

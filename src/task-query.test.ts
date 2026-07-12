@@ -2,14 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { TASKS_IN_NOTE_BLOCK, TASKS_DASHBOARD_BLOCK, blockInsertText } from './task-query';
 
 describe('task-query — block content (locks Tasks 8.2.2 syntax)', () => {
-	it('scopes the in-note block to the current file by exact path match', () => {
+	it('scopes the in-note block to the current file via a non-JS path placeholder', () => {
 		expect(TASKS_IN_NOTE_BLOCK).toBe(
-			[
-				'```tasks',
-				'not done',
-				'filter by function task.file.path === query.file.path',
-				'```',
-			].join('\n')
+			['```tasks', 'not done', 'path includes {{query.file.path}}', '```'].join('\n')
 		);
 	});
 
