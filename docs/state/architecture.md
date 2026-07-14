@@ -17,17 +17,9 @@ Scope: current plugin architecture
 - `task-extract.ts`: pure Markdown task extractor used by Wayfinder-owned task views.
 - `task-write.ts`: pure EOL-preserving status-character edits.
 - `task-actions.ts`: injectable editor/disk toggle orchestration.
-- `task-view.ts`: Obsidian-agnostic task DOM renderer — generic `renderTaskRow` shared by both panes, plus `renderTaskList` (sidebar) and `renderGroupedTasks` (global pane).
+- `task-view.ts`: Obsidian-agnostic grouped task DOM renderer.
 - `task-sidebar.ts`: Obsidian `ItemView` for current-note tasks.
 - `task-query.ts`: Tasks-plugin query block strings and cursor insertion wrapping.
-- `task-obsidian.ts`: shared Obsidian-facing helpers (`markdownViewForPath`, `openTaskLocation`) used by both panes.
-- `task-index.ts`: plugin-owned, Obsidian-agnostic incremental cross-vault task index (`Map<path, ExtractedTask[]>`), epoch + per-path generation guarded, injected IO.
-- `task-filter.ts`: pure filter/group/sort/slice derivation feeding the global pane (caps matched rows, deterministic ordering).
-- `task-global-view.ts`: Obsidian `ItemView` for the cross-vault global task pane.
-
-## Global task pane (M5)
-
-The cross-vault task surface is Wayfinder-owned: a plugin-owned incremental in-memory `TaskIndex` (fed by `vault` create/modify/delete/rename, persisted content only) emits coalesced snapshots to the pane, which derives a bounded view via the pure `task-filter.ts` and renders capped rows with a Show-more control. Lifecycle is gated on the `showGlobalTaskPane` setting; correctness rests on an index epoch (lifecycle), per-path generation (ordering), line+raw match (optimistic toggle patch), and vault-event reconciliation. See the working spec `docs/superpowers/specs/2026-07-15-global-task-pane-design.md` (gitignored) for detail.
 
 ## Dependency boundary
 
