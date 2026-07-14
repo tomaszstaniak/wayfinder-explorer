@@ -19,3 +19,15 @@ Future global task work should use Wayfinder's extractor/cache/renderer with cap
 ## Default new UI surfaces conservatively
 
 New visible surfaces should avoid surprising users on update. The Tasks sidebar defaults off and is enabled through settings.
+
+## Global task pane architecture (accepted 2026-07-15)
+
+The cross-vault "all tasks" surface is a Wayfinder-owned pane, not a Tasks-plugin block. Accepted shape:
+
+- **Separate incremental in-memory index**, plugin-owned, gated on `showGlobalTaskPane`. Do not unify with the folder-count scan yet; do not persist to disk (in-memory only) until measured startup/reindex cost warrants it.
+- **Persisted content only** — the index never models unsaved editor buffers. Pane toggles patch the index optimistically (line+raw match); the next vault event reconciles.
+- **Correctness by layered guards**: index epoch (start/stop lifecycle), per-path generation (per-file ordering), line+raw (optimistic patch), vault-event reconciliation. Vault create/modify/delete/rename are the only source of truth (`metadataCache.changed` omitted). Rename moves the entry (or schedules an update if absent). Transient read failures preserve last-good data; only genuinely-missing files are removed.
+- **Bounded rendering** — cap matched rows (not groups); Show-more in batches. No windowed virtualization until a measured need appears.
+- **Default grouping by note** (vault-native navigator); due/priority/status are alternate groupings. Deterministic sort tie-breakers so rows never jitter.
+- **Tags deferred to v1.1**; an interim case-insensitive text query covers finding `#tag` text without structured semantics.
+- Reuses the existing pure extractor and stale-guarded `toggleTaskStatus`; does not depend on the Tasks plugin.
