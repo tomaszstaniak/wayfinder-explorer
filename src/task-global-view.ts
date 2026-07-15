@@ -1,6 +1,6 @@
-import { ItemView, Notice, TFile, TFolder, WorkspaceLeaf } from 'obsidian';
+import { ItemView, MarkdownView, Notice, TFile, TFolder, WorkspaceLeaf } from 'obsidian';
 import type WayfinderPlugin from './main';
-import type { IndexedTask, TaskStatus } from './task-extract';
+import { extractTasks, type ExtractedTask, type IndexedTask, type TaskStatus } from './task-extract';
 import type { TaskSnapshot, TaskIndex } from './task-index';
 import {
 	deriveView,
@@ -43,6 +43,7 @@ export class WayfinderGlobalTasksView extends ItemView {
 	private textDebounce: number | null = null;
 
 	// UI state
+	private scopeMode: 'vault' | 'note' = 'vault';
 	private grouping: Grouping = 'note';
 	private sort: Sort = 'due';
 	private statusMode: 'open' | 'done' | 'all' = 'open';
@@ -51,6 +52,12 @@ export class WayfinderGlobalTasksView extends ItemView {
 	private text = '';
 	private pathScope = '';
 	private limit = PAGE;
+
+	// Pane-local overlay: the active editor's live (possibly unsaved) tasks,
+	// substituted for that note only at render time. The shared index stays
+	// persisted-only; this never writes into it.
+	private overlay: { path: string; tasks: readonly ExtractedTask[] } | null = null;
+	private editorDebounce: number | null = null;
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -80,6 +87,20 @@ export class WayfinderGlobalTasksView extends ItemView {
 			this.snap = s;
 			this.render();
 		});
+
+		const ws = this.plugin.app.workspace;
+		this.registerEvent(ws.on('active-leaf-change', () => this.onActiveChange()));
+		this.registerEvent(ws.on('file-open', () => this.onActiveChange()));
+		this.registerEvent(ws.on('editor-change', () => this.scheduleOverlayRefresh()));
+		// A save reconciles persisted content, so drop the overlay for that note.
+		this.registerEvent(
+			this.plugin.app.vault.on('modify', (f) => {
+				if (this.overlay && f.path === this.overlay.path) {
+					this.overlay = null;
+					this.render();
+				}
+			})
+		);
 		this.armMidnightTimer();
 	}
 
@@ -88,6 +109,40 @@ export class WayfinderGlobalTasksView extends ItemView {
 		this.unsubscribe = null;
 		if (this.midnightTimer !== null) window.clearTimeout(this.midnightTimer);
 		if (this.textDebounce !== null) window.clearTimeout(this.textDebounce);
+		if (this.editorDebounce !== null) window.clearTimeout(this.editorDebounce);
+	}
+
+	/** The active Markdown note, or null. */
+	private activeMdFile(): TFile | null {
+		const f = this.plugin.app.workspace.getActiveViewOfType(MarkdownView)?.file ?? null;
+		return f && f.extension === 'md' ? f : null;
+	}
+
+	private onActiveChange(): void {
+		// In "This note" scope the target note changed; re-render either way is cheap.
+		if (this.scopeMode === 'note') this.render();
+	}
+
+	private scheduleOverlayRefresh(): void {
+		if (this.editorDebounce !== null) window.clearTimeout(this.editorDebounce);
+		this.editorDebounce = window.setTimeout(() => this.refreshOverlay(), 150);
+	}
+
+	private refreshOverlay(): void {
+		const view = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
+		const file = view?.file;
+		if (!view || !file || file.extension !== 'md') return;
+		this.overlay = { path: file.path, tasks: extractTasks(view.editor.getValue()) };
+		this.render();
+	}
+
+	/** Snapshot tasks with the active editor's live tasks substituted for its note. */
+	private effectiveTasks(): readonly IndexedTask[] {
+		if (!this.overlay) return this.snap.tasks;
+		const path = this.overlay.path;
+		const others = this.snap.tasks.filter((t) => t.path !== path);
+		const overlaid = this.overlay.tasks.map((t) => ({ ...t, path }));
+		return [...others, ...overlaid];
 	}
 
 	private armMidnightTimer(): void {
@@ -138,6 +193,19 @@ export class WayfinderGlobalTasksView extends ItemView {
 		}
 		grouping.addEventListener('change', () => {
 			this.grouping = grouping.value as Grouping;
+			this.resetLimit();
+			this.render();
+		});
+
+		const scopeMode = root.createEl('select', { cls: 'wayfinder-global-scope' });
+		for (const [val, label] of [
+			['vault', 'Scope: Vault'],
+			['note', 'Scope: This note'],
+		] as const) {
+			scopeMode.createEl('option', { value: val, text: label });
+		}
+		scopeMode.addEventListener('change', () => {
+			this.scopeMode = scopeMode.value as 'vault' | 'note';
 			this.resetLimit();
 			this.render();
 		});
@@ -234,15 +302,29 @@ export class WayfinderGlobalTasksView extends ItemView {
 			this.footerEl.replaceChildren();
 			return;
 		}
+
+		let pathScope = this.pathScope;
+		if (this.scopeMode === 'note') {
+			const active = this.activeMdFile();
+			if (!active) {
+				this.listEl.replaceChildren();
+				this.listEl.createDiv({ cls: 'wayfinder-task-empty', text: 'No note open.' });
+				this.footerEl.replaceChildren();
+				return;
+			}
+			// An exact file path is a folder-boundary match for only that file.
+			pathScope = active.path;
+		}
+
 		const filters: Filters = {
-			pathScope: this.pathScope,
+			pathScope,
 			statuses: this.statuses(),
 			minPriority: this.minPriority,
 			due: this.due,
 			text: this.text,
 		};
 		const view = deriveView(
-			this.snap.tasks,
+			this.effectiveTasks(),
 			{ filters, grouping: this.grouping, sort: this.sort, limit: this.limit },
 			localToday(new Date())
 		);
@@ -313,6 +395,11 @@ export class WayfinderGlobalTasksView extends ItemView {
 			const outcome = await toggleTaskStatus(env, task);
 			if (outcome !== 'aborted') {
 				this.index.patchTaskStatus(task.path, task, nextStatusChar(task.statusChar));
+				// If this note has a live overlay (open, unsaved editor), rebuild it
+				// from the buffer we just wrote so the row reflects the toggle now.
+				if (editorView && this.overlay?.path === task.path) {
+					this.overlay = { path: task.path, tasks: extractTasks(editorView.editor.getValue()) };
+				}
 			} else if (editorView) {
 				new Notice('Task differs from the open editor; save the note and retry.');
 			} else {
