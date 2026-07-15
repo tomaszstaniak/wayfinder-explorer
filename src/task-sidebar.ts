@@ -1,20 +1,12 @@
-import { App, ItemView, MarkdownView, Notice, TFile, WorkspaceLeaf, debounce } from 'obsidian';
+import { ItemView, MarkdownView, Notice, TFile, WorkspaceLeaf, debounce } from 'obsidian';
 import type WayfinderPlugin from './main';
 import type { ExtractedTask } from './task-extract';
 import { extractTasks } from './task-extract';
 import { toggleTaskStatus, type ToggleEnv } from './task-actions';
 import { renderTaskList } from './task-view';
+import { markdownViewForPath, openTaskLocation } from './task-obsidian';
 
 export const VIEW_TYPE_TASKS = 'wayfinder-tasks';
-
-/** An open Markdown editor for `path`, regardless of which view is focused. */
-function markdownViewForPath(app: App, path: string): MarkdownView | null {
-	for (const leaf of app.workspace.getLeavesOfType('markdown')) {
-		const view = leaf.view;
-		if (view instanceof MarkdownView && view.file?.path === path) return view;
-	}
-	return null;
-}
 
 export class WayfinderTasksView extends ItemView {
 	private listEl!: HTMLElement;
@@ -122,19 +114,6 @@ export class WayfinderTasksView extends ItemView {
 
 	/** Open/reveal the note in a Markdown leaf — never the sidebar pane. */
 	private async jump(file: TFile, line: number): Promise<void> {
-		const ws = this.plugin.app.workspace;
-		const leaf = markdownViewForPath(this.plugin.app, file.path)?.leaf ?? ws.getLeaf('tab');
-		await leaf.openFile(file, { eState: { line } });
-		await ws.revealLeaf(leaf);
-		// `eState` scroll is ignored when the file was already open, so place the
-		// cursor explicitly — this guarantees the view lands on the task line.
-		const view = leaf.view;
-		if (view instanceof MarkdownView) {
-			const { editor } = view;
-			const target = Math.max(0, Math.min(line, editor.lineCount() - 1));
-			const pos = { line: target, ch: 0 };
-			editor.setCursor(pos);
-			editor.scrollIntoView({ from: pos, to: pos }, true);
-		}
+		await openTaskLocation(this.plugin.app, file, line);
 	}
 }
