@@ -289,7 +289,8 @@ export default class WayfinderPlugin extends Plugin {
 				else if (!wasMd && isNowMd) void this.taskIndex.updateFile(f.path);
 			}),
 		];
-		for (const ref of this.indexEventRefs) this.registerEvent(ref);
+		// Own the refs manually (offref in stopIndexing, reached via onunload too);
+		// do NOT also registerEvent them, or dead refs accumulate across toggles.
 		void this.taskIndex.start();
 	}
 
