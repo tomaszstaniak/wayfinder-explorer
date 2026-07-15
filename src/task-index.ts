@@ -153,7 +153,7 @@ export class TaskIndex {
 	}
 
 	patchTaskStatus(path: string, task: ExtractedTask, newChar: string): void {
-		if (!this.running) return;
+		if (!this.running || newChar.length !== 1) return;
 		const list = this.entries.get(path);
 		if (!list) return;
 		const idx = list.findIndex((t) => t.line === task.line && t.raw === task.raw);

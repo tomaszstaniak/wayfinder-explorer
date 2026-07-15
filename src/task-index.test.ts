@@ -173,4 +173,52 @@ describe('TaskIndex — correctness guards', () => {
 		await idx.updateFile('a.md');
 		expect(idx.snapshot().tasks).toHaveLength(1);
 	});
+
+	it('patchTaskStatus ignores a multi-character newChar', async () => {
+		const io = makeIO({ 'a.md': OPEN });
+		const idx = new TaskIndex(io);
+		await idx.start();
+		const before = idx.snapshot().tasks[0]!;
+		idx.patchTaskStatus('a.md', before, 'xy');
+		io.sched.flush();
+		expect(idx.snapshot().tasks[0]!.statusChar).toBe(' ');
+	});
+
+	it('a top-level listMarkdownPaths failure still reaches ready (not stuck indexing)', async () => {
+		const sched = fakeScheduler();
+		const io: TaskIndexIO = {
+			scheduler: sched,
+			listMarkdownPaths: () => {
+				throw new Error('listing failed');
+			},
+			fileExists: () => false,
+			readFile: async () => '',
+		};
+		const idx = new TaskIndex(io);
+		await idx.start();
+		expect(idx.snapshot().state).toBe('ready');
+	});
+
+	it('stop() then a fresh start() is not clobbered by a stale read from the first run', async () => {
+		let release!: (v: string) => void;
+		const slow = new Promise<string>((res) => (release = res));
+		let call = 0;
+		const sched = fakeScheduler();
+		const io: TaskIndexIO = {
+			scheduler: sched,
+			listMarkdownPaths: () => ['a.md'],
+			fileExists: () => true,
+			// First run: slow (never resolves before stop). Second run: fast.
+			readFile: () => (call++ === 0 ? slow : Promise.resolve('- [ ] fresh')),
+		};
+		const idx = new TaskIndex(io);
+		const firstStart = idx.start(); // begins reading a.md via `slow`
+		idx.stop();
+		await idx.start(); // second run indexes '- [ ] fresh'
+		release('- [ ] stale'); // first run's read resolves late
+		await firstStart;
+		const tasks = idx.snapshot().tasks;
+		expect(tasks).toHaveLength(1);
+		expect(tasks[0]!.text).toBe('fresh'); // stale read did not clobber
+	});
 });
