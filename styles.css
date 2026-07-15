@@ -109,3 +109,10 @@
 	padding: 0 5px;
 }
 .wayfinder-task-empty { color: var(--text-faint); font-size: var(--font-smaller); }
+
+.wayfinder-global-tasks { padding: var(--size-4-2); }
+.wayfinder-global-header { display: flex; flex-wrap: wrap; gap: var(--size-2-2); margin-bottom: var(--size-4-2); }
+.wayfinder-global-search { flex: 1; min-width: 8em; }
+.wayfinder-global-filter-panel { display: flex; flex-wrap: wrap; gap: var(--size-2-2); width: 100%; margin-top: var(--size-2-2); }
+.wayfinder-global-footer { display: flex; align-items: center; gap: var(--size-2-2); margin-top: var(--size-4-2); color: var(--text-muted); font-size: var(--font-ui-small); }
+.wayfinder-task-source { color: var(--text-faint); }
