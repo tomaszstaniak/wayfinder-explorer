@@ -17,9 +17,18 @@ Scope: current plugin architecture
 - `task-extract.ts`: pure Markdown task extractor used by Wayfinder-owned task views.
 - `task-write.ts`: pure EOL-preserving status-character edits.
 - `task-actions.ts`: injectable editor/disk toggle orchestration.
-- `task-view.ts`: Obsidian-agnostic grouped task DOM renderer.
-- `task-sidebar.ts`: Obsidian `ItemView` for current-note tasks.
+- `task-view.ts`: Obsidian-agnostic task DOM renderer — generic `renderTaskRow`, `renderTaskList` (sidebar), `renderGroupedTasks` (global pane).
+- `task-sidebar.ts`: Obsidian `ItemView` for current-note tasks (superseded by the global pane's "This note" scope; retirement pending).
 - `task-query.ts`: Tasks-plugin query block strings and cursor insertion wrapping.
+- `task-obsidian.ts`: shared Obsidian-facing helpers (`markdownViewForPath`, `openTaskLocation`) used by both panes.
+- `task-dates.ts`: pure date utilities (calendar validation, UTC day arithmetic, due buckets, local-today/next-midnight).
+- `task-index.ts`: plugin-owned, Obsidian-agnostic incremental cross-vault task index (`Map<path, ExtractedTask[]>`), epoch + per-path generation guarded, injected IO; persisted content only.
+- `task-filter.ts`: pure filter/group/sort/row-cap derivation feeding the global pane (deterministic ordering, capped matched rows).
+- `task-global-view.ts`: Obsidian `ItemView` for the cross-vault global task pane (grouping, filters, bounded render, live-editor overlay, "This note" scope).
+
+## Global task pane
+
+The cross-vault task surface is Wayfinder-owned: a plugin-owned incremental `TaskIndex` (fed by `vault` create/modify/delete/rename, persisted content only) emits coalesced snapshots to `task-global-view.ts`, which derives a bounded view via pure `task-filter.ts` + `task-dates.ts` and renders capped rows with Show-more. The pane keeps a debounced, pane-local overlay of the active editor's live buffer (the index never caches unsaved content). Lifecycle is gated on `showGlobalTaskPane`; correctness rests on an index epoch (lifecycle), per-path generation (ordering), line+raw match (optimistic toggle patch), and vault-event reconciliation.
 
 ## Dependency boundary
 
