@@ -1,4 +1,4 @@
-import { ItemView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
+import { ItemView, Notice, TFile, TFolder, WorkspaceLeaf } from 'obsidian';
 import type WayfinderPlugin from './main';
 import type { IndexedTask, TaskStatus } from './task-extract';
 import type { TaskSnapshot, TaskIndex } from './task-index';
@@ -211,18 +211,15 @@ export class WayfinderGlobalTasksView extends ItemView {
 			this.render();
 		});
 
-		const scope = panel.createEl('input', {
-			attr: { type: 'text', placeholder: 'Path scope (folder)' },
-		});
+		const scope = panel.createEl('select');
+		scope.createEl('option', { value: '', text: 'Folder: All' });
+		const folders = this.plugin.app.vault
+			.getAllLoadedFiles()
+			.filter((f): f is TFolder => f instanceof TFolder && f.path !== '/')
+			.map((f) => f.path)
+			.sort((a, b) => a.localeCompare(b));
+		for (const path of folders) scope.createEl('option', { value: path, text: `Folder: ${path}` });
 		scope.addEventListener('change', () => {
-			this.pathScope = scope.value;
-			this.resetLimit();
-			this.render();
-		});
-		panel.createEl('button', { text: 'This folder' }).addEventListener('click', () => {
-			const f = this.plugin.app.workspace.getActiveFile();
-			const folder = f?.parent?.path ?? '';
-			scope.value = folder === '/' ? '' : folder;
 			this.pathScope = scope.value;
 			this.resetLimit();
 			this.render();
