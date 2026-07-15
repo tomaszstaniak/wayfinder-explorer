@@ -1,4 +1,14 @@
-import { Editor, Notice, Plugin, TFile, TFolder, getIcon, getIconIds } from 'obsidian';
+import {
+	Editor,
+	EventRef,
+	Notice,
+	Plugin,
+	TFile,
+	TFolder,
+	debounce,
+	getIcon,
+	getIconIds,
+} from 'obsidian';
 import { FolderCounts, HostData } from './compiler';
 import { Controller } from './controller';
 import { FRONTMATTER_ICONS, IconResolver, IconSource } from './icons';
@@ -13,6 +23,8 @@ import { VIEW_TYPE_TASKS, WayfinderTasksView } from './task-sidebar';
 import { shorthandToTaskLine } from './task-parser';
 import { countOpenTasksInText, rollUpToFolders } from './task-count';
 import { TASKS_IN_NOTE_BLOCK, TASKS_DASHBOARD_BLOCK, blockInsertText } from './task-query';
+import { TaskIndex, type TaskIndexIO } from './task-index';
+import { VIEW_TYPE_GLOBAL_TASKS, WayfinderGlobalTasksView } from './task-global-view';
 
 export default class WayfinderPlugin extends Plugin {
 	private styleManager!: StyleManager;
@@ -28,6 +40,12 @@ export default class WayfinderPlugin extends Plugin {
 	/** Path of the note currently being edited, and its linger timer. */
 	private editingPath: string | null = null;
 	private editingTimer: number | null = null;
+	/** Cross-vault task index (feeds the global tasks pane). */
+	private taskIndex!: TaskIndex;
+	private globalTaskRibbonEl: HTMLElement | null = null;
+	private indexEventRefs: EventRef[] = [];
+	private indexing = false;
+	private pendingIndexFlush: (() => void) | null = null;
 
 	async onload() {
 		this.styleManager = new StyleManager(document);
@@ -57,9 +75,50 @@ export default class WayfinderPlugin extends Plugin {
 		this.addSettingTab(new WayfinderSettingTab(this.app, this, this.store));
 
 		this.registerView(VIEW_TYPE_TASKS, (leaf) => new WayfinderTasksView(leaf, this));
+
+		// Cross-vault task index: coalesce emits through a debounce, forwarding to
+		// the index's latest flush (keeps the index Obsidian-agnostic).
+		const indexFlush = debounce(() => this.taskIndexEmit(), 100, false);
+		const io: TaskIndexIO = {
+			listMarkdownPaths: () => this.app.vault.getMarkdownFiles().map((f) => f.path),
+			readFile: (p) => {
+				const f = this.app.vault.getAbstractFileByPath(p);
+				return f instanceof TFile
+					? this.app.vault.cachedRead(f)
+					: Promise.reject(new Error('not a markdown file'));
+			},
+			fileExists: (p) => {
+				const f = this.app.vault.getAbstractFileByPath(p);
+				return f instanceof TFile && f.extension === 'md';
+			},
+			scheduler: {
+				schedule: (fn) => {
+					this.pendingIndexFlush = fn;
+					indexFlush();
+				},
+				cancel: () => {
+					this.pendingIndexFlush = null;
+					indexFlush.cancel();
+				},
+			},
+		};
+		this.taskIndex = new TaskIndex(io);
+		this.registerView(
+			VIEW_TYPE_GLOBAL_TASKS,
+			(leaf) => new WayfinderGlobalTasksView(leaf, this, this.taskIndex)
+		);
+		this.addCommand({
+			id: 'open-global-tasks',
+			name: 'Open global tasks (vault)',
+			callback: () => void this.activateGlobalTasksView(),
+		});
+
 		// Defer to layout-ready so a leaf restored from the saved layout exists
 		// before we decide to keep or detach it.
-		this.app.workspace.onLayoutReady(() => this.syncTasksSidebar());
+		this.app.workspace.onLayoutReady(() => {
+			this.syncTasksSidebar();
+			this.syncGlobalTaskPane();
+		});
 
 		// Rescan open-task counts when the feature is switched on.
 		let taskCountsOn = this.store.state.settings.showTaskCounts;
@@ -70,6 +129,7 @@ export default class WayfinderPlugin extends Plugin {
 				void this.scanTaskCounts();
 			}
 			this.syncTasksSidebar();
+			this.syncGlobalTaskPane();
 		});
 		if (taskCountsOn) void this.scanTaskCounts();
 
@@ -173,7 +233,86 @@ export default class WayfinderPlugin extends Plugin {
 
 	onunload() {
 		if (this.editingTimer !== null) window.clearTimeout(this.editingTimer);
+		this.stopIndexing();
 		this.styleManager.unmount();
+	}
+
+	/** Forward the index's coalesced flush (bound once via debounce) to its latest callback. */
+	private taskIndexEmit(): void {
+		const fn = this.pendingIndexFlush;
+		this.pendingIndexFlush = null;
+		if (fn) fn();
+	}
+
+	/** Single sync point for the global pane; runs even when disabled (detaches restored leaves). */
+	syncGlobalTaskPane(): void {
+		const on = this.store.state.settings.showGlobalTaskPane;
+		if (on) {
+			if (!this.globalTaskRibbonEl) {
+				this.globalTaskRibbonEl = this.addRibbonIcon(
+					'list-checks',
+					'Wayfinder vault tasks',
+					() => void this.activateGlobalTasksView()
+				);
+			}
+			this.startIndexing();
+		} else {
+			if (this.globalTaskRibbonEl) {
+				this.globalTaskRibbonEl.remove();
+				this.globalTaskRibbonEl = null;
+			}
+			this.stopIndexing();
+			this.app.workspace.detachLeavesOfType(VIEW_TYPE_GLOBAL_TASKS);
+		}
+	}
+
+	private startIndexing(): void {
+		if (this.indexing) return;
+		this.indexing = true;
+		const vault = this.app.vault;
+		const isMd = (f: unknown): f is TFile => f instanceof TFile && f.extension === 'md';
+		this.indexEventRefs = [
+			vault.on('create', (f) => {
+				if (isMd(f)) void this.taskIndex.updateFile(f.path);
+			}),
+			vault.on('modify', (f) => {
+				if (isMd(f)) void this.taskIndex.updateFile(f.path);
+			}),
+			vault.on('delete', (f) => {
+				if (isMd(f)) this.taskIndex.removeFile(f.path);
+			}),
+			vault.on('rename', (f, oldPath) => {
+				const wasMd = oldPath.endsWith('.md');
+				const isNowMd = isMd(f);
+				if (wasMd && isNowMd) void this.taskIndex.renameFile(oldPath, f.path);
+				else if (wasMd && !isNowMd) this.taskIndex.removeFile(oldPath);
+				else if (!wasMd && isNowMd) void this.taskIndex.updateFile(f.path);
+			}),
+		];
+		for (const ref of this.indexEventRefs) this.registerEvent(ref);
+		void this.taskIndex.start();
+	}
+
+	private stopIndexing(): void {
+		if (!this.indexing) return;
+		this.indexing = false;
+		for (const ref of this.indexEventRefs) this.app.vault.offref(ref);
+		this.indexEventRefs = [];
+		this.taskIndex.stop();
+	}
+
+	async activateGlobalTasksView(): Promise<void> {
+		if (!this.store.state.settings.showGlobalTaskPane) {
+			new Notice('Enable the global tasks pane in Wayfinder settings first.');
+			return;
+		}
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(VIEW_TYPE_GLOBAL_TASKS)[0] ?? null;
+		if (!leaf) {
+			leaf = workspace.getRightLeaf(false);
+			await leaf?.setViewState({ type: VIEW_TYPE_GLOBAL_TASKS, active: true });
+		}
+		if (leaf) await workspace.revealLeaf(leaf);
 	}
 
 	/** Debounce window after the last keystroke before the icon reverts. */

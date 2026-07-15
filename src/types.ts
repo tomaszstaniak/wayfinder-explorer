@@ -98,6 +98,8 @@ export interface WayfinderSettings {
 	showTaskCounts: boolean;
 	/** Show the "Tasks in current note" sidebar pane and its ribbon icon. */
 	showTaskSidebar: boolean;
+	/** Show the vault-wide global tasks pane and its ribbon icon. */
+	showGlobalTaskPane: boolean;
 }
 
 export type IconColorSource = 'text' | 'folder';
@@ -147,6 +149,7 @@ export const DEFAULT_SETTINGS: WayfinderSettings = {
 	editingBlink: true,
 	showTaskCounts: false,
 	showTaskSidebar: false,
+	showGlobalTaskPane: false,
 };
 
 export function defaultData(): WayfinderData {

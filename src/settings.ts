@@ -224,6 +224,17 @@ export class WayfinderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName('Global tasks pane')
+			.setDesc(
+				'Show a vault-wide pane of all tasks, grouped and filterable, with a ribbon icon to open it.'
+			)
+			.addToggle((t) =>
+				t
+					.setValue(s.showGlobalTaskPane)
+					.onChange((v) => this.store.updateSettings({ showGlobalTaskPane: v }))
+			);
+
+		new Setting(containerEl)
 			.setName('Quick add task')
 			.setDesc(
 				'One-line capture that compiles to a Tasks-plugin line: @date (today, friday, 3d, 2026-07-15), !priority (high, !!!, 2), *recurrence (weekly). Also accepts an existing "- [ ]" line to augment it. Or write the shorthand directly in a note and run "Convert line to task (shorthand)" (bind either command to a hotkey).'

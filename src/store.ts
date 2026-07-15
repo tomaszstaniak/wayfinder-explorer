@@ -209,6 +209,10 @@ function parseSettings(raw: unknown): WayfinderSettings {
 			typeof r.showTaskSidebar === 'boolean'
 				? r.showTaskSidebar
 				: DEFAULT_SETTINGS.showTaskSidebar,
+		showGlobalTaskPane:
+			typeof r.showGlobalTaskPane === 'boolean'
+				? r.showGlobalTaskPane
+				: DEFAULT_SETTINGS.showGlobalTaskPane,
 	};
 }
 
