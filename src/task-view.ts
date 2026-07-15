@@ -1,9 +1,16 @@
 import type { ExtractedTask, TaskStatus } from './task-extract';
 import type { Priority } from './task-parser';
 
-export interface TaskViewHandlers {
-	onToggle(task: ExtractedTask): void;
-	onJump(task: ExtractedTask): void;
+export interface TaskViewHandlers<T extends ExtractedTask = ExtractedTask> {
+	onToggle(task: T): void;
+	onJump(task: T): void;
+}
+
+export interface RenderGroup<T extends ExtractedTask = ExtractedTask> {
+	key: string;
+	label: string;
+	count: number;
+	tasks: readonly T[];
 }
 
 const GROUP_ORDER: ReadonlyArray<{ status: TaskStatus; label: string }> = [
@@ -22,44 +29,12 @@ const PRIORITY_LABEL: Record<Priority, string> = {
 	lowest: 'Lowest',
 };
 
-/** Replace `container` with the tasks grouped by status. Standard DOM only. */
-export function renderTaskList(
-	container: HTMLElement,
-	tasks: readonly ExtractedTask[],
-	handlers: TaskViewHandlers
-): void {
-	const doc = container.ownerDocument;
-	container.replaceChildren();
-
-	for (const { status, label } of GROUP_ORDER) {
-		const inGroup = tasks.filter((t) => t.status === status);
-		if (inGroup.length === 0) continue;
-
-		const group = doc.createElement('div');
-		group.className = 'wayfinder-task-group';
-
-		const header = doc.createElement('div');
-		header.className = 'wayfinder-task-group-header';
-		const labelEl = doc.createElement('span');
-		labelEl.className = 'wayfinder-task-group-label';
-		labelEl.textContent = label;
-		const countEl = doc.createElement('span');
-		countEl.className = 'wayfinder-task-group-count';
-		countEl.textContent = String(inGroup.length);
-		header.append(labelEl, countEl);
-		group.append(header);
-
-		for (const task of inGroup) {
-			group.append(renderRow(doc, task, handlers));
-		}
-		container.append(group);
-	}
-}
-
-function renderRow(
+/** One task row. A <div role=button> (not <button>) avoids theme button chrome. */
+export function renderTaskRow<T extends ExtractedTask>(
 	doc: Document,
-	task: ExtractedTask,
-	handlers: TaskViewHandlers
+	task: T,
+	handlers: TaskViewHandlers<T>,
+	options?: { sourceLabel?: string; sourceTitle?: string }
 ): HTMLElement {
 	const row = doc.createElement('div');
 	row.className = 'wayfinder-task-row';
@@ -99,5 +74,74 @@ function renderRow(
 		chip.textContent = task.due;
 		row.append(chip);
 	}
+	if (options?.sourceLabel) {
+		const chip = doc.createElement('span');
+		chip.className = 'wayfinder-task-chip wayfinder-task-source';
+		chip.textContent = options.sourceLabel;
+		if (options.sourceTitle) chip.setAttribute('title', options.sourceTitle);
+		row.append(chip);
+	}
 	return row;
+}
+
+function groupHeader(doc: Document, label: string, count: number): HTMLElement {
+	const header = doc.createElement('div');
+	header.className = 'wayfinder-task-group-header';
+	const labelEl = doc.createElement('span');
+	labelEl.className = 'wayfinder-task-group-label';
+	labelEl.textContent = label;
+	const countEl = doc.createElement('span');
+	countEl.className = 'wayfinder-task-group-count';
+	countEl.textContent = String(count);
+	header.append(labelEl, countEl);
+	return header;
+}
+
+/** Replace `container` with the tasks grouped by status (current-note sidebar). */
+export function renderTaskList(
+	container: HTMLElement,
+	tasks: readonly ExtractedTask[],
+	handlers: TaskViewHandlers
+): void {
+	const doc = container.ownerDocument;
+	container.replaceChildren();
+	for (const { status, label } of GROUP_ORDER) {
+		const inGroup = tasks.filter((t) => t.status === status);
+		if (inGroup.length === 0) continue;
+		const group = doc.createElement('div');
+		group.className = 'wayfinder-task-group';
+		group.append(groupHeader(doc, label, inGroup.length));
+		for (const task of inGroup) group.append(renderTaskRow(doc, task, handlers));
+		container.append(group);
+	}
+}
+
+function basename(path: string): string {
+	const parts = path.split('/');
+	return parts[parts.length - 1] ?? path;
+}
+
+/** Replace `container` with pre-built groups (global pane). */
+export function renderGroupedTasks<T extends ExtractedTask>(
+	container: HTMLElement,
+	groups: readonly RenderGroup<T>[],
+	handlers: TaskViewHandlers<T>,
+	options?: { showSource?: boolean }
+): void {
+	const doc = container.ownerDocument;
+	container.replaceChildren();
+	for (const g of groups) {
+		const group = doc.createElement('div');
+		group.className = 'wayfinder-task-group';
+		group.append(groupHeader(doc, g.label, g.count));
+		for (const task of g.tasks) {
+			const path = (task as ExtractedTask & { path?: string }).path;
+			const opts =
+				options?.showSource && path
+					? { sourceLabel: basename(path), sourceTitle: path }
+					: undefined;
+			group.append(renderTaskRow(doc, task, handlers, opts));
+		}
+		container.append(group);
+	}
 }

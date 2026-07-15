@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import type { ExtractedTask } from './task-extract';
-import { renderTaskList } from './task-view';
+import { renderTaskList, renderTaskRow, renderGroupedTasks } from './task-view';
 
 // Build a valid ExtractedTask; `raw` is derived from statusChar so fixtures
 // stay internally consistent (no stale "- [ ]" on a done task).
@@ -125,5 +125,48 @@ describe('renderTaskList — interactivity and re-render', () => {
 		const rows = Array.from(container.querySelectorAll('.wayfinder-task-row'));
 		expect(rows).toHaveLength(1);
 		expect(rows[0]!.querySelector('.wayfinder-task-text')!.textContent).toBe('only');
+	});
+});
+
+describe('renderTaskRow — source chip', () => {
+	it('omits the source chip when no sourceLabel is given', () => {
+		const row = renderTaskRow(document, task({ text: 'a' }), { onToggle: vi.fn(), onJump: vi.fn() });
+		expect(row.querySelector('.wayfinder-task-source')).toBeNull();
+	});
+
+	it('renders a source chip with basename text and full-path title', () => {
+		const row = renderTaskRow(
+			document,
+			task({ text: 'a' }),
+			{ onToggle: vi.fn(), onJump: vi.fn() },
+			{ sourceLabel: 'Note.md', sourceTitle: 'Projects/Note.md' }
+		);
+		const chip = row.querySelector('.wayfinder-task-source')!;
+		expect(chip.textContent).toBe('Note.md');
+		expect(chip.getAttribute('title')).toBe('Projects/Note.md');
+	});
+});
+
+describe('renderGroupedTasks', () => {
+	it('renders each group header with its label and count, then rows', () => {
+		const container = document.createElement('div');
+		renderGroupedTasks(
+			container,
+			[
+				{ key: 'g1', label: 'Group One', count: 2, tasks: [task({ text: 'a' }), task({ text: 'b' })] },
+				{ key: 'g2', label: 'Group Two', count: 1, tasks: [task({ text: 'c' })] },
+			],
+			{ onToggle: vi.fn(), onJump: vi.fn() }
+		);
+		const headers = Array.from(container.querySelectorAll('.wayfinder-task-group-header'));
+		expect(headers.map((h) => h.querySelector('.wayfinder-task-group-label')!.textContent)).toEqual([
+			'Group One',
+			'Group Two',
+		]);
+		expect(headers.map((h) => h.querySelector('.wayfinder-task-group-count')!.textContent)).toEqual([
+			'2',
+			'1',
+		]);
+		expect(container.querySelectorAll('.wayfinder-task-row')).toHaveLength(3);
 	});
 });
