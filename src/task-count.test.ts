@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { countOpenTasksInText, isOpenTaskStatus, rollUpToFolders } from './task-count';
+import { countOpenTasksInText, isOpenTaskStatus, isWithinFolder, rollUpToFolders } from './task-count';
+
+describe('isWithinFolder', () => {
+	it('matches the folder and its descendants', () => {
+		expect(isWithinFolder('Projects/A', 'Projects/A')).toBe(true);
+		expect(isWithinFolder('Projects/A/x.md', 'Projects/A')).toBe(true);
+	});
+	it('does not match a sibling with a shared prefix', () => {
+		expect(isWithinFolder('Projects/Archive/x.md', 'Projects/A')).toBe(false);
+	});
+});
 
 describe('countOpenTasksInText', () => {
 	it('counts only real open checkboxes, not bullets or done/cancelled', () => {

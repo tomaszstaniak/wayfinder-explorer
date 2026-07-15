@@ -16,6 +16,9 @@ export interface ExtractedTask {
 	priority?: Priority;
 }
 
+/** An extracted task paired with its source note path (index/pane model). */
+export type IndexedTask = ExtractedTask & { path: string };
+
 /** ` `→todo, `x`/`X`→done, `/`→inProgress, `-`→cancelled, else→other. */
 export function statusFromChar(ch: string): TaskStatus {
 	if (ch === ' ') return 'todo';

@@ -24,9 +24,14 @@ export function countOpenTasksInText(text: string): number {
 	return n;
 }
 
+/** True if `path` is the folder itself or inside it (folder-boundary match). */
+export function isWithinFolder(path: string, folder: string): boolean {
+	return path === folder || path.startsWith(folder + '/');
+}
+
 /** True if path is inside (or equal to) any of the excluded folders. */
 function isExcluded(path: string, excluded: readonly string[]): boolean {
-	return excluded.some((folder) => path === folder || path.startsWith(folder + '/'));
+	return excluded.some((folder) => isWithinFolder(path, folder));
 }
 
 /**
