@@ -12,6 +12,18 @@ describe('statusFromChar', () => {
 	});
 });
 
+describe('extractTasks — recurrence', () => {
+	it('flags a task carrying a 🔁 recurrence rule', () => {
+		const [task] = extractTasks('- [ ] Water plants 🔁 every week 📅 2026-08-01');
+		expect(task!.recurring).toBe(true);
+	});
+
+	it('leaves non-recurring tasks without the flag', () => {
+		const [task] = extractTasks('- [ ] Water plants 📅 2026-08-01');
+		expect(task!.recurring).toBeUndefined();
+	});
+});
+
 describe('extractTasks — basic', () => {
 	it('extracts checkboxes with status, text, line, and raw', () => {
 		const md = ['# Note', '- [ ] first', 'prose', '  - [x] second done'].join('\n');

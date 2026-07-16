@@ -116,3 +116,18 @@
 .wayfinder-global-filter-panel { display: flex; flex-wrap: wrap; gap: var(--size-2-2); width: 100%; margin-top: var(--size-2-2); }
 .wayfinder-global-footer { display: flex; align-items: center; gap: var(--size-2-2); margin-top: var(--size-4-2); color: var(--text-muted); font-size: var(--font-ui-small); }
 .wayfinder-task-source { color: var(--text-faint); }
+.wayfinder-task-recurring {
+	appearance: none;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	padding: 0;
+	margin: 0;
+	min-width: 0;
+	height: auto;
+	line-height: 1;
+	cursor: pointer;
+	font-size: var(--font-ui-small);
+	opacity: 0.8;
+}
+.wayfinder-task-recurring:hover { opacity: 1; }

@@ -74,6 +74,18 @@ describe('renderTaskRow — row content & interactivity', () => {
 		expect(onToggle).toHaveBeenCalledTimes(1);
 		expect(onToggle).toHaveBeenCalledWith(tk);
 	});
+
+	it('renders a recurrence control (not a checkbox) for recurring tasks and calls onRecurring', () => {
+		const onRecurring = vi.fn();
+		const onToggle = vi.fn();
+		const tk = { ...task({ text: 'weekly' }), recurring: true };
+		const row = renderTaskRow(document, tk, { onToggle, onJump: vi.fn(), onRecurring });
+		expect(row.querySelector('input.wayfinder-task-checkbox')).toBeNull();
+		const rec = row.querySelector<HTMLElement>('.wayfinder-task-recurring')!;
+		rec.click();
+		expect(onRecurring).toHaveBeenCalledWith(tk);
+		expect(onToggle).not.toHaveBeenCalled();
+	});
 });
 
 describe('renderTaskRow — source chip', () => {

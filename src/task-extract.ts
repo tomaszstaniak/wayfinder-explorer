@@ -14,6 +14,8 @@ export interface ExtractedTask {
 	text: string;
 	due?: string;
 	priority?: Priority;
+	/** True if the line carries a recurrence rule (🔁). */
+	recurring?: boolean;
 }
 
 /** An extracted task paired with its source note path (index/pane model). */
@@ -90,7 +92,8 @@ export function extractTasks(markdown: string): ExtractedTask[] {
 		const m = TASK_RE.exec(raw);
 		if (!m) continue;
 		const statusChar = m[2]!;
-		const meta = parseMeta(m[4]!);
+		const body = m[4]!;
+		const meta = parseMeta(body);
 		tasks.push({
 			line: i,
 			raw,
@@ -99,6 +102,7 @@ export function extractTasks(markdown: string): ExtractedTask[] {
 			text: meta.text,
 			...(meta.due ? { due: meta.due } : {}),
 			...(meta.priority ? { priority: meta.priority } : {}),
+			...(body.includes('🔁') ? { recurring: true } : {}),
 		});
 	}
 	return tasks;

@@ -350,6 +350,10 @@ export class WayfinderGlobalTasksView extends ItemView {
 		const handlers: TaskViewHandlers<IndexedTask> = {
 			onToggle: (t) => void this.toggle(t),
 			onJump: (t) => void this.jump(t),
+			onRecurring: (t) => {
+				new Notice('Recurring task: complete it in the note to create the next occurrence.');
+				void this.jump(t);
+			},
 		};
 		const groups: RenderGroup<IndexedTask>[] = view.groups.map((g) => ({
 			key: g.key,

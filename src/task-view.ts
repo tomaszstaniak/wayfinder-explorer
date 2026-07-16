@@ -4,6 +4,8 @@ import type { Priority } from './task-parser';
 export interface TaskViewHandlers<T extends ExtractedTask = ExtractedTask> {
 	onToggle(task: T): void;
 	onJump(task: T): void;
+	/** Action for a recurring row's control (defaults to onJump). */
+	onRecurring?(task: T): void;
 }
 
 export interface RenderGroup<T extends ExtractedTask = ExtractedTask> {
@@ -31,11 +33,27 @@ export function renderTaskRow<T extends ExtractedTask>(
 	const row = doc.createElement('div');
 	row.className = 'wayfinder-task-row';
 
-	const checkbox = doc.createElement('input');
-	checkbox.type = 'checkbox';
-	checkbox.className = 'wayfinder-task-checkbox';
-	checkbox.checked = task.status === 'done';
-	checkbox.addEventListener('click', () => handlers.onToggle(task));
+	// Recurring tasks can't be completed by a single status flip (the next
+	// occurrence must be created), so they get a control that opens the note
+	// instead of a checkbox. Ordinary tasks stay directly checkable.
+	let lead: HTMLElement;
+	if (task.recurring) {
+		const rec = doc.createElement('button');
+		rec.type = 'button';
+		rec.className = 'wayfinder-task-recurring';
+		rec.textContent = '🔁';
+		rec.setAttribute('aria-label', 'Recurring task — open in note');
+		rec.setAttribute('title', 'Recurring task — complete it in the note to create the next occurrence');
+		rec.addEventListener('click', () => (handlers.onRecurring ?? handlers.onJump)(task));
+		lead = rec;
+	} else {
+		const checkbox = doc.createElement('input');
+		checkbox.type = 'checkbox';
+		checkbox.className = 'wayfinder-task-checkbox';
+		checkbox.checked = task.status === 'done';
+		checkbox.addEventListener('click', () => handlers.onToggle(task));
+		lead = checkbox;
+	}
 
 	// A <div> (not <button>) so it inherits none of the theme's button chrome;
 	// role + tabindex + key handler keep it keyboard-operable.
@@ -52,7 +70,7 @@ export function renderTaskRow<T extends ExtractedTask>(
 		}
 	});
 
-	row.append(checkbox, textEl);
+	row.append(lead, textEl);
 
 	if (task.priority) {
 		const chip = doc.createElement('span');

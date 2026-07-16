@@ -32,6 +32,12 @@ The cross-vault "all tasks" surface is a Wayfinder-owned pane, not a Tasks-plugi
 - **Tags deferred to v1.1**; an interim case-insensitive text query covers finding `#tag` text without structured semantics.
 - Reuses the existing pure extractor and stale-guarded `toggleTaskStatus`; does not depend on the Tasks plugin.
 
+## Migrating away from the community Tasks plugin; recurrence is a bridge (v0.5.1)
+
+Direction: **now** Wayfinder task UI + optional Tasks-plugin helpers → **later** a Wayfinder-owned task engine → **eventually** a separate `wayfinder-tasks` plugin if warranted. The global pane is part of this migration.
+
+Recurrence (`🔁`) is not free to own — it needs deliberate rules (syntax parsing, done-date stamping, next-occurrence calculation/insertion, overdue/custom-status handling, Tasks-syntax compatibility). Until we build that, the pane does **not** complete recurring tasks: a `🔁` row shows a recurrence control (not a checkbox) that opens the note with a Notice, letting the external Tasks plugin advance the recurrence correctly. We deliberately do **not** invoke the Tasks plugin's internals to do this — that would deepen the dependency we intend to remove. Ordinary tasks stay directly checkable in the pane.
+
 ## Retired the per-note Tasks sidebar (v0.5.1)
 
 The global pane's "This note" scope supersedes the old per-note sidebar, so it was removed (view, `showTaskSidebar` setting, ribbon, `open-tasks-view` command, `task-sidebar.ts`, and the now-unused `renderTaskList`). Two overlapping task surfaces isn't worth maintaining. On load, any leaf restored from an old layout is detached via a one-time `detachLeavesOfType('wayfinder-tasks')`. Legacy `showTaskSidebar` values in saved settings are simply ignored.
