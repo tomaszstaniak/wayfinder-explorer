@@ -31,3 +31,7 @@ The cross-vault "all tasks" surface is a Wayfinder-owned pane, not a Tasks-plugi
 - **Default grouping by note** (vault-native navigator); due/priority/status are alternate groupings. Deterministic sort tie-breakers so rows never jitter.
 - **Tags deferred to v1.1**; an interim case-insensitive text query covers finding `#tag` text without structured semantics.
 - Reuses the existing pure extractor and stale-guarded `toggleTaskStatus`; does not depend on the Tasks plugin.
+
+## Retired the per-note Tasks sidebar (v0.5.1)
+
+The global pane's "This note" scope supersedes the old per-note sidebar, so it was removed (view, `showTaskSidebar` setting, ribbon, `open-tasks-view` command, `task-sidebar.ts`, and the now-unused `renderTaskList`). Two overlapping task surfaces isn't worth maintaining. On load, any leaf restored from an old layout is detached via a one-time `detachLeavesOfType('wayfinder-tasks')`. Legacy `showTaskSidebar` values in saved settings are simply ignored.

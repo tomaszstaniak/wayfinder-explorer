@@ -17,8 +17,7 @@ Scope: current plugin architecture
 - `task-extract.ts`: pure Markdown task extractor used by Wayfinder-owned task views.
 - `task-write.ts`: pure EOL-preserving status-character edits.
 - `task-actions.ts`: injectable editor/disk toggle orchestration.
-- `task-view.ts`: Obsidian-agnostic task DOM renderer — generic `renderTaskRow`, `renderTaskList` (sidebar), `renderGroupedTasks` (global pane).
-- `task-sidebar.ts`: Obsidian `ItemView` for current-note tasks (superseded by the global pane's "This note" scope; retirement pending).
+- `task-view.ts`: Obsidian-agnostic task DOM renderer — generic `renderTaskRow` and `renderGroupedTasks` (global pane).
 - `task-query.ts`: Tasks-plugin query block strings and cursor insertion wrapping.
 - `task-obsidian.ts`: shared Obsidian-facing helpers (`markdownViewForPath`, `openTaskLocation`) used by both panes.
 - `task-dates.ts`: pure date utilities (calendar validation, UTC day arithmetic, due buckets, local-today/next-midnight).

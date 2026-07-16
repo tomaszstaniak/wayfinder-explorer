@@ -215,15 +215,6 @@ export class WayfinderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Tasks sidebar')
-			.setDesc('Show a sidebar pane listing the current note’s tasks, with a ribbon icon to open it.')
-			.addToggle((t) =>
-				t
-					.setValue(s.showTaskSidebar)
-					.onChange((v) => this.store.updateSettings({ showTaskSidebar: v }))
-			);
-
-		new Setting(containerEl)
 			.setName('Global tasks pane')
 			.setDesc(
 				'Show a vault-wide pane of all tasks, grouped and filterable, with a ribbon icon to open it.'

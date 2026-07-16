@@ -19,7 +19,6 @@ import { WayfinderSettingTab } from './settings';
 import { Store } from './store';
 import { StyleManager } from './style-manager';
 import { TaskModal } from './task-modal';
-import { VIEW_TYPE_TASKS, WayfinderTasksView } from './task-sidebar';
 import { shorthandToTaskLine } from './task-parser';
 import { countOpenTasksInText, rollUpToFolders } from './task-count';
 import { TASKS_IN_NOTE_BLOCK, TASKS_DASHBOARD_BLOCK, blockInsertText } from './task-query';
@@ -74,7 +73,9 @@ export default class WayfinderPlugin extends Plugin {
 		await this.controller.start();
 		this.addSettingTab(new WayfinderSettingTab(this.app, this, this.store));
 
-		this.registerView(VIEW_TYPE_TASKS, (leaf) => new WayfinderTasksView(leaf, this));
+		// Retired in v0.5.1: the per-note Tasks sidebar is superseded by the global
+		// pane's "This note" scope. Clean up any leaf restored from an old layout.
+		this.app.workspace.onLayoutReady(() => this.app.workspace.detachLeavesOfType('wayfinder-tasks'));
 
 		// Cross-vault task index: coalesce emits through a debounce, forwarding to
 		// the index's latest flush (keeps the index Obsidian-agnostic).
@@ -115,10 +116,7 @@ export default class WayfinderPlugin extends Plugin {
 
 		// Defer to layout-ready so a leaf restored from the saved layout exists
 		// before we decide to keep or detach it.
-		this.app.workspace.onLayoutReady(() => {
-			this.syncTasksSidebar();
-			this.syncGlobalTaskPane();
-		});
+		this.app.workspace.onLayoutReady(() => this.syncGlobalTaskPane());
 
 		// Rescan open-task counts when the feature is switched on.
 		let taskCountsOn = this.store.state.settings.showTaskCounts;
@@ -128,7 +126,6 @@ export default class WayfinderPlugin extends Plugin {
 				taskCountsOn = on;
 				void this.scanTaskCounts();
 			}
-			this.syncTasksSidebar();
 			this.syncGlobalTaskPane();
 		});
 		if (taskCountsOn) void this.scanTaskCounts();
@@ -204,11 +201,6 @@ export default class WayfinderPlugin extends Plugin {
 			id: 'convert-line-to-task',
 			name: 'Convert line to task (shorthand)',
 			editorCallback: (editor) => this.convertLinesToTasks(editor),
-		});
-		this.addCommand({
-			id: 'open-tasks-view',
-			name: 'Open tasks in note (sidebar)',
-			callback: () => void this.activateTasksView(),
 		});
 		this.addCommand({
 			id: 'insert-tasks-in-note',
@@ -364,42 +356,6 @@ export default class WayfinderPlugin extends Plugin {
 			if (editor) editor.replaceSelection(line + '\n');
 			else new Notice('Wayfinder: open a note to insert the task.');
 		}).open();
-	}
-
-	private tasksRibbonEl: HTMLElement | null = null;
-
-	/** Apply the current showTaskSidebar setting to ribbon + open leaves. */
-	syncTasksSidebar(): void {
-		const on = this.store.state.settings.showTaskSidebar;
-		if (!on) {
-			if (this.tasksRibbonEl) {
-				this.tasksRibbonEl.remove();
-				this.tasksRibbonEl = null;
-			}
-			// Always detach — a leaf may have been restored from the saved
-			// layout even when the ribbon was never created (setting off at load).
-			this.app.workspace.detachLeavesOfType(VIEW_TYPE_TASKS);
-			return;
-		}
-		if (!this.tasksRibbonEl) {
-			this.tasksRibbonEl = this.addRibbonIcon('list-checks', 'Wayfinder tasks', () =>
-				void this.activateTasksView()
-			);
-		}
-	}
-
-	async activateTasksView(): Promise<void> {
-		if (!this.store.state.settings.showTaskSidebar) {
-			new Notice('Enable the Tasks sidebar in Wayfinder settings first.');
-			return;
-		}
-		const { workspace } = this.app;
-		let leaf = workspace.getLeavesOfType(VIEW_TYPE_TASKS)[0] ?? null;
-		if (!leaf) {
-			leaf = workspace.getRightLeaf(false);
-			await leaf?.setViewState({ type: VIEW_TYPE_TASKS, active: true });
-		}
-		if (leaf) await workspace.revealLeaf(leaf);
 	}
 
 	/** Insert a Tasks block at the cursor; warn if the Tasks plugin can't render it. */

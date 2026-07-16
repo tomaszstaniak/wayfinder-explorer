@@ -96,8 +96,6 @@ export interface WayfinderSettings {
 	editingBlink: boolean;
 	/** Show an open-task count pill on folders, alongside the item count. */
 	showTaskCounts: boolean;
-	/** Show the "Tasks in current note" sidebar pane and its ribbon icon. */
-	showTaskSidebar: boolean;
 	/** Show the vault-wide global tasks pane and its ribbon icon. */
 	showGlobalTaskPane: boolean;
 }
@@ -148,7 +146,6 @@ export const DEFAULT_SETTINGS: WayfinderSettings = {
 	editingIcon: 'pencil',
 	editingBlink: true,
 	showTaskCounts: false,
-	showTaskSidebar: false,
 	showGlobalTaskPane: false,
 };
 

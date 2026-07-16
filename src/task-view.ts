@@ -1,4 +1,4 @@
-import type { ExtractedTask, TaskStatus } from './task-extract';
+import type { ExtractedTask } from './task-extract';
 import type { Priority } from './task-parser';
 
 export interface TaskViewHandlers<T extends ExtractedTask = ExtractedTask> {
@@ -12,14 +12,6 @@ export interface RenderGroup<T extends ExtractedTask = ExtractedTask> {
 	count: number;
 	tasks: readonly T[];
 }
-
-const GROUP_ORDER: ReadonlyArray<{ status: TaskStatus; label: string }> = [
-	{ status: 'todo', label: 'Todo' },
-	{ status: 'inProgress', label: 'In Progress' },
-	{ status: 'done', label: 'Done' },
-	{ status: 'cancelled', label: 'Cancelled' },
-	{ status: 'other', label: 'Other' },
-];
 
 const PRIORITY_LABEL: Record<Priority, string> = {
 	highest: 'Highest',
@@ -95,25 +87,6 @@ function groupHeader(doc: Document, label: string, count: number): HTMLElement {
 	countEl.textContent = String(count);
 	header.append(labelEl, countEl);
 	return header;
-}
-
-/** Replace `container` with the tasks grouped by status (current-note sidebar). */
-export function renderTaskList(
-	container: HTMLElement,
-	tasks: readonly ExtractedTask[],
-	handlers: TaskViewHandlers
-): void {
-	const doc = container.ownerDocument;
-	container.replaceChildren();
-	for (const { status, label } of GROUP_ORDER) {
-		const inGroup = tasks.filter((t) => t.status === status);
-		if (inGroup.length === 0) continue;
-		const group = doc.createElement('div');
-		group.className = 'wayfinder-task-group';
-		group.append(groupHeader(doc, label, inGroup.length));
-		for (const task of inGroup) group.append(renderTaskRow(doc, task, handlers));
-		container.append(group);
-	}
 }
 
 function basename(path: string): string {
