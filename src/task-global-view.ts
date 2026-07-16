@@ -43,7 +43,7 @@ export class WayfinderGlobalTasksView extends ItemView {
 	private textDebounce: number | null = null;
 
 	// UI state
-	private scopeMode: 'vault' | 'note' = 'vault';
+	private scopeMode: 'vault' | 'folder' | 'note' = 'vault';
 	private grouping: Grouping = 'note';
 	private sort: Sort = 'due';
 	private statusMode: 'open' | 'done' | 'all' = 'open';
@@ -119,8 +119,8 @@ export class WayfinderGlobalTasksView extends ItemView {
 	}
 
 	private onActiveChange(): void {
-		// In "This note" scope the target note changed; re-render either way is cheap.
-		if (this.scopeMode === 'note') this.render();
+		// In note/folder scope the target follows the active note; re-render.
+		if (this.scopeMode !== 'vault') this.render();
 	}
 
 	private scheduleOverlayRefresh(): void {
@@ -200,12 +200,13 @@ export class WayfinderGlobalTasksView extends ItemView {
 		const scopeMode = root.createEl('select', { cls: 'wayfinder-global-scope' });
 		for (const [val, label] of [
 			['vault', 'Scope: Vault'],
+			['folder', 'Scope: This folder'],
 			['note', 'Scope: This note'],
 		] as const) {
 			scopeMode.createEl('option', { value: val, text: label });
 		}
 		scopeMode.addEventListener('change', () => {
-			this.scopeMode = scopeMode.value as 'vault' | 'note';
+			this.scopeMode = scopeMode.value as 'vault' | 'folder' | 'note';
 			this.resetLimit();
 			this.render();
 		});
@@ -295,7 +296,11 @@ export class WayfinderGlobalTasksView extends ItemView {
 	}
 
 	private render(): void {
-		if (!this.listEl?.isConnected) return;
+		// Guard on existence, NOT isConnected: the first paint during onOpen can run
+		// before the container attaches to the DOM; writing into listEl is still
+		// correct (it shows when it attaches). onClose unsubscribes + clears timers,
+		// so no render is triggered after close.
+		if (!this.listEl) return;
 		if (this.snap.state === 'indexing') {
 			this.listEl.replaceChildren();
 			this.listEl.createDiv({ cls: 'wayfinder-task-empty', text: 'Indexing…' });
@@ -304,7 +309,7 @@ export class WayfinderGlobalTasksView extends ItemView {
 		}
 
 		let pathScope = this.pathScope;
-		if (this.scopeMode === 'note') {
+		if (this.scopeMode !== 'vault') {
 			const active = this.activeMdFile();
 			if (!active) {
 				this.listEl.replaceChildren();
@@ -312,8 +317,14 @@ export class WayfinderGlobalTasksView extends ItemView {
 				this.footerEl.replaceChildren();
 				return;
 			}
-			// An exact file path is a folder-boundary match for only that file.
-			pathScope = active.path;
+			if (this.scopeMode === 'note') {
+				// An exact file path is a folder-boundary match for only that file.
+				pathScope = active.path;
+			} else {
+				// Folder scope: the active note's folder (root → whole vault).
+				const folder = active.parent?.path ?? '';
+				pathScope = folder === '/' ? '' : folder;
+			}
 		}
 
 		const filters: Filters = {
