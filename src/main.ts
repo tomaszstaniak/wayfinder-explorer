@@ -73,7 +73,7 @@ export default class WayfinderPlugin extends Plugin {
 		await this.controller.start();
 		this.addSettingTab(new WayfinderSettingTab(this.app, this, this.store));
 
-		// Retired in v0.5.1: the per-note Tasks sidebar is superseded by the global
+		// Retired in v0.6.0: the per-note Tasks sidebar is superseded by the global
 		// pane's "This note" scope. Clean up any leaf restored from an old layout.
 		this.app.workspace.onLayoutReady(() => this.app.workspace.detachLeavesOfType('wayfinder-tasks'));
 

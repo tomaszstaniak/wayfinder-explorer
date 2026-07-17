@@ -112,9 +112,12 @@ export class WayfinderGlobalTasksView extends ItemView {
 		if (this.editorDebounce !== null) window.clearTimeout(this.editorDebounce);
 	}
 
-	/** The active Markdown note, or null. */
+	/** The active Markdown note, or null. Falls back to the last active file so
+	 *  it still resolves when the pane itself holds focus (getActiveViewOfType
+	 *  returns null then). */
 	private activeMdFile(): TFile | null {
-		const f = this.plugin.app.workspace.getActiveViewOfType(MarkdownView)?.file ?? null;
+		const ws = this.plugin.app.workspace;
+		const f = ws.getActiveViewOfType(MarkdownView)?.file ?? ws.getActiveFile();
 		return f && f.extension === 'md' ? f : null;
 	}
 

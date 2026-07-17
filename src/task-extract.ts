@@ -46,6 +46,10 @@ const EMOJI_TO_PRIORITY: Record<string, Priority> = {
 // Date-bearing emoji; only the calendar (📅) yields `due`.
 const DATE_EMOJI = ['📅', '⏳', '🛫', '✅', '➕'];
 
+// A real recurrence: the 🔁 signifier followed by an "every …" rule — not a
+// decorative 🔁 in the task text. (Optional emoji variation selector allowed.)
+const RECURRENCE_RE = /🔁️?\s*every\b/i;
+
 function parseMeta(body: string): { text: string; due?: string; priority?: Priority } {
 	let text = body;
 	let due: string | undefined;
@@ -102,7 +106,7 @@ export function extractTasks(markdown: string): ExtractedTask[] {
 			text: meta.text,
 			...(meta.due ? { due: meta.due } : {}),
 			...(meta.priority ? { priority: meta.priority } : {}),
-			...(body.includes('🔁') ? { recurring: true } : {}),
+			...(RECURRENCE_RE.test(body) ? { recurring: true } : {}),
 		});
 	}
 	return tasks;

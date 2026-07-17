@@ -22,6 +22,11 @@ describe('extractTasks — recurrence', () => {
 		const [task] = extractTasks('- [ ] Water plants 📅 2026-08-01');
 		expect(task!.recurring).toBeUndefined();
 	});
+
+	it('does not flag a decorative 🔁 with no recurrence rule (stays checkable)', () => {
+		const [task] = extractTasks('- [ ] Explain the 🔁 refresh button');
+		expect(task!.recurring).toBeUndefined();
+	});
 });
 
 describe('extractTasks — basic', () => {
