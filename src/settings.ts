@@ -1,12 +1,16 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, EventRef, PluginSettingTab, Setting, setIcon } from 'obsidian';
 import { ColorPickerModal } from './color-picker';
 import { FolderSuggestModal } from './folder-suggest';
 import { IconPickerModal } from './icon-picker';
+import { SignalRuleModal } from './signal-rule-modal';
 import { Store } from './store';
-import { DEFAULT_SETTINGS, SETTINGS_BOUNDS } from './types';
+import { DEFAULT_SETTINGS, SETTINGS_BOUNDS, SignalRule } from './types';
 import type WayfinderPlugin from './main';
 
 export class WayfinderSettingTab extends PluginSettingTab {
+	/** One-shot listener that re-renders once frontmatter suggestions are ready. */
+	private resolvedRef: EventRef | null = null;
+
 	constructor(
 		app: App,
 		private readonly wayfinder: WayfinderPlugin,
@@ -202,6 +206,7 @@ export class WayfinderSettingTab extends PluginSettingTab {
 		}
 
 		this.displayFolderRules(containerEl);
+		this.displaySignalRules(containerEl);
 
 		new Setting(containerEl).setName('Tasks').setHeading();
 
@@ -326,6 +331,25 @@ export class WayfinderSettingTab extends PluginSettingTab {
 					this.display();
 				})
 			);
+
+		// Re-render once metadata resolves so signal suggestions appear (one-shot).
+		if (!this.wayfinder.isMetadataReady() && !this.resolvedRef) {
+			this.resolvedRef = this.app.metadataCache.on('resolved', () => {
+				if (this.resolvedRef) {
+					this.app.metadataCache.offref(this.resolvedRef);
+					this.resolvedRef = null;
+				}
+				this.display();
+			});
+		}
+	}
+
+	hide(): void {
+		if (this.resolvedRef) {
+			this.app.metadataCache.offref(this.resolvedRef);
+			this.resolvedRef = null;
+		}
+		super.hide();
 	}
 
 	/** Everything Wayfinder is doing per folder, editable in one place. */
@@ -430,5 +454,137 @@ export class WayfinderSettingTab extends PluginSettingTab {
 						})
 				);
 		}
+	}
+
+	/** Ordered, per-channel frontmatter-signal rules. */
+	private displaySignalRules(containerEl: HTMLElement): void {
+		new Setting(containerEl).setName('Frontmatter signals').setHeading();
+
+		const rules = this.store.state.signals;
+		const ready = this.wayfinder.isMetadataReady();
+
+		new Setting(containerEl)
+			.setName('Add signal rule')
+			.setDesc(
+				ready
+					? 'Style files by top-level frontmatter. Rules run top to bottom; higher rules take precedence.'
+					: 'Style files by frontmatter. Suggestions are still loading — custom entry works now.'
+			)
+			.addButton((b) => b.setButtonText('Add rule…').onClick(() => this.openSignalModal(null)));
+
+		rules.forEach((rule, i) => {
+			const row = new Setting(containerEl).setName(`${rule.property} = ${rule.equals}`);
+			this.renderSignalChips(row.descEl, rule);
+			row.settingEl.toggleClass('wayfinder-signal-disabled', !rule.enabled);
+
+			row
+				.addExtraButton((b) =>
+					b
+						.setIcon(rule.enabled ? 'eye' : 'eye-off')
+						.setTooltip(rule.enabled ? 'Disable' : 'Enable')
+						.onClick(() => {
+							this.store.setSignalRuleEnabled(rule.id, !rule.enabled);
+							this.display();
+						})
+				)
+				.addExtraButton((b) =>
+					b
+						.setIcon('chevron-up')
+						.setTooltip('Move up')
+						.setDisabled(i === 0)
+						.onClick(() => {
+							this.store.moveSignalRule(rule.id, -1);
+							this.display();
+						})
+				)
+				.addExtraButton((b) =>
+					b
+						.setIcon('chevron-down')
+						.setTooltip('Move down')
+						.setDisabled(i === rules.length - 1)
+						.onClick(() => {
+							this.store.moveSignalRule(rule.id, 1);
+							this.display();
+						})
+				)
+				.addExtraButton((b) =>
+					b
+						.setIcon('pencil')
+						.setTooltip('Edit')
+						.onClick(() => this.openSignalModal(rule))
+				)
+				.addExtraButton((b) =>
+					b
+						.setIcon('copy')
+						.setTooltip('Duplicate')
+						.onClick(() => {
+							this.store.duplicateSignalRule(rule.id, this.newSignalId());
+							this.display();
+						})
+				)
+				.addExtraButton((b) =>
+					b
+						.setIcon('trash-2')
+						.setTooltip('Delete')
+						.onClick(() => {
+							this.store.removeSignalRule(rule.id);
+							this.display();
+						})
+				);
+		});
+	}
+
+	/** Visual channel summary: icon glyph, color swatches, marker text. */
+	private renderSignalChips(el: HTMLElement, rule: SignalRule): void {
+		el.empty();
+		if (rule.icon) {
+			const s = el.createSpan({ cls: 'wayfinder-signal-chip' });
+			setIcon(s, rule.icon);
+		}
+		for (const key of ['iconColor', 'textColor', 'rowBackground'] as const) {
+			const color = rule[key];
+			if (!color) continue;
+			const sw = el.createSpan({ cls: 'wayfinder-signal-swatch' });
+			sw.style.backgroundColor = color;
+			sw.setAttribute('aria-label', `${key} ${color}`);
+		}
+		if (rule.marker) el.createSpan({ cls: 'wayfinder-signal-chip', text: rule.marker });
+		if (!rule.icon && !rule.iconColor && !rule.textColor && !rule.rowBackground && !rule.marker) {
+			el.setText('No channels');
+		}
+	}
+
+	private openSignalModal(rule: SignalRule | null): void {
+		new SignalRuleModal({
+			app: this.app,
+			iconSource: this.wayfinder.iconSource,
+			inventory: this.wayfinder.buildSignalInventory(),
+			initial: rule,
+			newId: () => this.newSignalId(),
+			onSubmit: (result) => {
+				if (rule) {
+					// Pass every channel explicitly (incl. undefined) so cleared channels
+					// are dropped by the merge, not preserved from the old rule.
+					this.store.updateSignalRule(rule.id, {
+						enabled: result.enabled,
+						property: result.property,
+						equals: result.equals,
+						icon: result.icon,
+						iconColor: result.iconColor,
+						textColor: result.textColor,
+						rowBackground: result.rowBackground,
+						marker: result.marker,
+					});
+				} else {
+					this.store.addSignalRule(result);
+				}
+				this.display();
+			},
+		}).open();
+	}
+
+	private newSignalId(): string {
+		const uuid = window.crypto?.randomUUID?.();
+		return uuid ? `sig-${uuid}` : `sig-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
 	}
 }

@@ -131,3 +131,45 @@
 	opacity: 0.8;
 }
 .wayfinder-task-recurring:hover { opacity: 1; }
+
+/* Frontmatter signals: rule-list chips and the modal preview. */
+.wayfinder-signal-chip {
+	display: inline-flex;
+	align-items: center;
+	margin-inline-end: var(--size-2-2, 4px);
+	vertical-align: middle;
+}
+.wayfinder-signal-chip .svg-icon {
+	width: var(--icon-s, 16px);
+	height: var(--icon-s, 16px);
+}
+.wayfinder-signal-swatch {
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	border-radius: var(--radius-s, 4px);
+	margin-inline-end: var(--size-2-2, 4px);
+	vertical-align: middle;
+	border: 1px solid var(--background-modifier-border);
+}
+.wayfinder-signal-preview {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2, 4px);
+	margin: var(--size-4-2, 8px) 0;
+	padding: var(--size-2-3, 6px) var(--size-4-2, 8px);
+	border-radius: var(--radius-s, 4px);
+	font-size: var(--font-ui-small);
+}
+.wayfinder-signal-preview-icon {
+	display: inline-flex;
+	align-items: center;
+}
+.wayfinder-signal-preview-icon .svg-icon {
+	width: var(--icon-s, 16px);
+	height: var(--icon-s, 16px);
+}
+.wayfinder-signal-preview-marker {
+	opacity: 0.85;
+}
+.wayfinder-signal-disabled { opacity: 0.5; }
