@@ -53,6 +53,12 @@ describe('parseData', () => {
 		expect(r.warnings).toHaveLength(1);
 	});
 
+	it('defaults signals to an empty array', () => {
+		const r = parseData(null);
+		expect(r.data.signals).toEqual([]);
+		expect(r.data.version).toBe(SCHEMA_VERSION);
+	});
+
 	it('rejects future versions instead of guessing', () => {
 		const r = parseData({ version: 999, folders: { a: { color: '#112233' } } });
 		expect(r.data.folders).toEqual({});

@@ -55,6 +55,38 @@ export interface FileEntry {
 	iconColor?: string;
 }
 
+/** One frontmatter-signal rule. Array order is priority; index 0 wins first. */
+export interface SignalRule {
+	id: string;
+	enabled: boolean;
+	/** Top-level frontmatter key, matched exactly (case-sensitive). */
+	property: string;
+	/** Value to match, as the user typed it; canonicalized at match time. */
+	equals: string;
+	icon?: string;
+	iconColor?: string;
+	textColor?: string;
+	rowBackground?: string;
+	/** 1–8 grapheme clusters, no line breaks/control chars. */
+	marker?: string;
+}
+
+/** The resolved visual output for one file (only set channels present). */
+export interface ResolvedSignal {
+	icon?: string;
+	iconColor?: string;
+	textColor?: string;
+	rowBackground?: string;
+	marker?: string;
+}
+
+export const SIGNAL_LIMITS = {
+	propertyMax: 200,
+	equalsMax: 200,
+	idMax: 64,
+	markerMaxGraphemes: 8,
+} as const;
+
 export interface WayfinderSettings {
 	defaultFileIcons: boolean;
 	defaultFolderIcons: boolean;
@@ -114,6 +146,7 @@ export interface WayfinderData {
 	folders: Record<string, FolderEntry>;
 	files: Record<string, FileEntry>;
 	settings: WayfinderSettings;
+	signals: SignalRule[];
 }
 
 export const SETTINGS_BOUNDS = {
@@ -155,6 +188,7 @@ export function defaultData(): WayfinderData {
 		folders: {},
 		files: {},
 		settings: { ...DEFAULT_SETTINGS },
+		signals: [],
 	};
 }
 
