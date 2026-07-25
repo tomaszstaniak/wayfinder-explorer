@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compile } from './compiler';
-import { WayfinderData, defaultData } from './types';
+import { ResolvedSignal, WayfinderData, defaultData } from './types';
 
 const fakeResolve = (name: string): string | null =>
 	name.startsWith('gone') ? null : `url("data:fake/${name}")`;
@@ -58,6 +58,86 @@ describe('compile: scoping and defaults', () => {
 		const pdfRule = css.split('\n').find((l) => l.includes('".pdf" i'));
 		expect(pdfRule).toContain('data:fake/file-text');
 		expect(missingIcons).toContain('file-type');
+	});
+});
+
+describe('compile: signals', () => {
+	const sig = (m: Record<string, ResolvedSignal>) => new Map(Object.entries(m));
+
+	it('emits nothing when no signals are supplied', () => {
+		const withOut = compile(state(), fakeResolve).css;
+		const withEmpty = compile(state(), fakeResolve, { signals: sig({}) }).css;
+		expect(withEmpty).toBe(withOut);
+	});
+
+	it('emits per-channel rules for a resolved signal', () => {
+		const { css } = compile(state(), fakeResolve, {
+			signals: sig({
+				'n.md': { icon: 'star', iconColor: '#4f9d69', textColor: '#4f9d69', rowBackground: '#4f9d69', marker: '●' },
+			}),
+		});
+		expect(css).toContain('data:fake/star');
+		expect(css).toContain('--wf-icon-color: #4f9d69');
+		expect(css).toContain('color: #4f9d69');
+		expect(css).toContain('color-mix(in srgb, #4f9d69 18%, transparent)');
+		expect(css).toContain('content: "●"');
+	});
+
+	it('emits the signal icon after content detection but before manual file icons', () => {
+		const { css } = compile(state({ files: { 'n.md': { icon: 'manual' } } }), fakeResolve, {
+			signals: sig({ 'n.md': { icon: 'signal' } }),
+			contentIcons: new Map([['n.md', ['detected']]]),
+		});
+		const detected = css.indexOf('data:fake/detected');
+		const signal = css.indexOf('data:fake/signal');
+		const manual = css.indexOf('data:fake/manual');
+		expect(detected).toBeGreaterThan(-1);
+		expect(signal).toBeGreaterThan(detected);
+		expect(manual).toBeGreaterThan(signal);
+	});
+
+	it('emits signal text/background after folder color scopes (signal wins)', () => {
+		const { css } = compile(
+			state({
+				folders: { A: { color: '#111111' } },
+				settings: { ...defaultData().settings, colorMode: 'text' },
+			}),
+			fakeResolve,
+			{ signals: sig({ 'A/n.md': { textColor: '#4f9d69' } }) }
+		);
+		expect(css.indexOf('#4f9d69')).toBeGreaterThan(css.indexOf('#111111'));
+	});
+
+	it('guards signal text/background with the row state guard', () => {
+		const { css } = compile(state(), fakeResolve, {
+			signals: sig({ 'n.md': { textColor: '#4f9d69', rowBackground: '#123456' } }),
+		});
+		const bgLine = css.split('\n').find((l) => l.includes('background-color: color-mix') && l.includes('#123456'));
+		const textLine = css.split('\n').find((l) => l.includes('color: #4f9d69'));
+		expect(bgLine).toContain(':not(.is-active):not(.has-focus):not(.is-being-dragged)');
+		expect(textLine).toContain(':not(.is-active):not(.has-focus):not(.is-being-dragged)');
+	});
+
+	it('escapes quotes and backslashes in paths and markers', () => {
+		const { css } = compile(state(), fakeResolve, {
+			signals: sig({ 'weird".md': { marker: '"' }, 'back\\slash.md': { iconColor: '#112233' } }),
+		});
+		expect(css).toContain('[data-path="weird\\".md"]');
+		expect(css).toContain('[data-path="back\\\\slash.md"]');
+		expect(css).toContain('content: "\\""');
+	});
+
+	it('skips an unavailable signal icon and records it as missing', () => {
+		const { css, missingIcons } = compile(state(), fakeResolve, {
+			signals: sig({ 'n.md': { icon: 'gone-x', marker: '●' } }),
+		});
+		expect(missingIcons).toContain('gone-x');
+		expect(css).not.toContain('data:fake/gone-x');
+	});
+
+	it('emits no marker base block when no signal has a marker', () => {
+		const { css } = compile(state(), fakeResolve, { signals: sig({ 'n.md': { iconColor: '#112233' } }) });
+		expect(css).not.toContain('.nav-file-title-content::after');
 	});
 });
 
