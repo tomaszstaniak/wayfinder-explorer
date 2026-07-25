@@ -87,6 +87,9 @@ export const SIGNAL_LIMITS = {
 	markerMaxGraphemes: 8,
 } as const;
 
+/** Fixed opacity (%) for signal row backgrounds — blended so rows stay readable. */
+export const SIGNAL_BG_ALPHA = 18;
+
 export interface WayfinderSettings {
 	defaultFileIcons: boolean;
 	defaultFolderIcons: boolean;

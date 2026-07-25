@@ -17,13 +17,12 @@ import {
 	HEX_COLOR_RE,
 	SCHEMA_VERSION,
 	SETTINGS_BOUNDS,
-	SIGNAL_LIMITS,
 	SignalRule,
 	WayfinderData,
 	WayfinderSettings,
 	defaultData,
 } from './types';
-import { normalizeSignalRule, signalRulesEqual } from './signal-resolve';
+import { isValidSignalId, normalizeSignalRule, signalRulesEqual } from './signal-resolve';
 
 /** Abstracts Obsidian's Plugin.loadData/saveData for testability. */
 export interface Persistence {
@@ -258,6 +257,9 @@ export function parseSignals(
 			warnings.push(`Wayfinder: dropped invalid signal rule at index ${i}.`);
 			return;
 		}
+		for (const issue of norm.issues) {
+			warnings.push(`Wayfinder: dropped invalid ${issue} on signal rule at index ${i}.`);
+		}
 		if (norm.changed) anyChanged = true;
 		survivors.push({ rule: norm.rule, originalIndex: i });
 	});
@@ -267,7 +269,7 @@ export function parseSignals(
 	const reserved = new Set<string>();
 	survivors.forEach((s, idx) => {
 		const id = s.rule.id;
-		if (id !== '' && id.length <= SIGNAL_LIMITS.idMax && !reserved.has(id)) {
+		if (isValidSignalId(id) && !reserved.has(id)) {
 			reserved.add(id);
 			finalIds[idx] = id;
 		}
@@ -609,10 +611,11 @@ export class Store {
 		return true;
 	}
 
-	/** Append a rule; rejects invalid rules and duplicate ids. */
+	/** Append a rule; rejects invalid rules, malformed ids, and duplicate ids. */
 	addSignalRule(rule: SignalRule): boolean {
 		const norm = normalizeSignalRule(rule);
 		if (!norm) return false;
+		if (!isValidSignalId(norm.rule.id)) return false;
 		if (this.data.signals.some((r) => r.id === norm.rule.id)) return false;
 		return this.setSignals([...this.data.signals, norm.rule]);
 	}
@@ -649,6 +652,7 @@ export class Store {
 		if (i < 0) return false;
 		const source = this.data.signals[i];
 		if (!source) return false;
+		if (!isValidSignalId(newId)) return false;
 		if (this.data.signals.some((r) => r.id === newId)) return false;
 		const norm = normalizeSignalRule({ ...source, id: newId });
 		if (!norm) return false;

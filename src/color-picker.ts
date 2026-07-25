@@ -18,7 +18,7 @@ export class ColorPickerModal extends Modal {
 	}
 
 	onOpen(): void {
-		this.setTitle('Wayfinder: custom folder color');
+		this.setTitle('Wayfinder: custom color');
 		const { contentEl } = this;
 
 		let preview: HTMLElement;

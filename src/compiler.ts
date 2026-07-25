@@ -1,7 +1,7 @@
 import { deriveChildColors } from './color-utils';
 import { escapeCssString } from './escape';
 import { FILE_FALLBACK_ICON, FOLDER_ICON, SUFFIX_ICONS } from './icons';
-import { ResolvedSignal, WayfinderData } from './types';
+import { ResolvedSignal, SIGNAL_BG_ALPHA, WayfinderData } from './types';
 
 /** Every selector is rooted here so nothing outside the explorer is touched. */
 const SCOPE = '.workspace-leaf-content[data-type="file-explorer"]';
@@ -14,9 +14,6 @@ const ROW_STATE_GUARD = ':not(.is-active):not(.has-focus):not(.is-being-dragged)
 
 const TITLE_COLOR_MIX = 80; // % of scope color in the folder title text
 const LINE_COLOR_MIX = 75; // % of scope color in the main line
-
-/** Fixed opacity (%) for signal row backgrounds — blended so rows stay readable. */
-const SIGNAL_BG_ALPHA = 18;
 
 export interface CompileResult {
 	css: string;

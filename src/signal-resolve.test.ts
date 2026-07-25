@@ -5,6 +5,7 @@ import {
 	resolvedSignalMapsEqual,
 	signalRulesEqual,
 	normalizeSignalRule,
+	isValidSignalId,
 } from './signal-resolve';
 import { ResolvedSignal, SignalRule } from './types';
 
@@ -93,12 +94,17 @@ describe('normalizeSignalRule', () => {
 		expect(res!.rule.equals).toBe('draft');
 		expect(res!.changed).toBe(true);
 	});
-	it('drops invalid hex channels but keeps valid ones', () => {
+	it('drops invalid hex channels but keeps valid ones, and reports issues', () => {
 		const res = normalizeSignalRule(rule({ textColor: 'red', marker: '●', iconColor: '#ABCDEF' }));
 		expect(res!.rule.textColor).toBeUndefined();
 		expect(res!.rule.iconColor).toBe('#abcdef');
 		expect(res!.rule.marker).toBe('●');
 		expect(res!.changed).toBe(true);
+		expect(res!.issues).toContain('textColor');
+	});
+
+	it('reports no issues for a clean rule', () => {
+		expect(normalizeSignalRule(rule({ marker: '●' }))!.issues).toEqual([]);
 	});
 	it('rejects control-character and oversized markers', () => {
 		expect(normalizeSignalRule(rule({ marker: 'a\nb', iconColor: '#112233' }))!.rule.marker).toBeUndefined();
@@ -116,5 +122,16 @@ describe('normalizeSignalRule', () => {
 	it('reports changed=false for an already-clean rule', () => {
 		const res = normalizeSignalRule(rule({ id: 'x', enabled: true, property: 's', equals: 'v', marker: '●' }));
 		expect(res!.changed).toBe(false);
+	});
+});
+
+describe('isValidSignalId', () => {
+	it('accepts non-empty ids within the size cap', () => {
+		expect(isValidSignalId('sig-1')).toBe(true);
+	});
+	it('rejects empty, oversized, and non-string ids', () => {
+		expect(isValidSignalId('')).toBe(false);
+		expect(isValidSignalId('x'.repeat(65))).toBe(false);
+		expect(isValidSignalId(42)).toBe(false);
 	});
 });

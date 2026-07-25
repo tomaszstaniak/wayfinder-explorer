@@ -100,14 +100,29 @@ export function normalizeMarker(raw: unknown): string | null {
 	return m;
 }
 
+/** A well-formed rule id: non-empty and within the persisted size cap. */
+export function isValidSignalId(id: unknown): id is string {
+	return typeof id === 'string' && id !== '' && id.length <= SIGNAL_LIMITS.idMax;
+}
+
+export interface NormalizedSignalRule {
+	rule: SignalRule;
+	/** True when any field was trimmed, lowercased, defaulted, or dropped. */
+	changed: boolean;
+	/** Channel names dropped for being invalid (e.g. 'iconColor', 'marker'). */
+	issues: string[];
+}
+
 /**
  * The single source of truth for a valid, persisted rule. Used by both the
  * parser and every store mutation so invariants can never be bypassed.
- * Returns the normalized rule and whether any normalization occurred, or null
- * when the rule is unusable (empty property/value or no surviving channel).
+ * Returns the normalized rule, whether any normalization occurred, and which
+ * channels were dropped; null when the rule is unusable (empty property/value
+ * or no surviving channel).
  */
-export function normalizeSignalRule(input: SignalRule): { rule: SignalRule; changed: boolean } | null {
+export function normalizeSignalRule(input: SignalRule): NormalizedSignalRule | null {
 	let changed = false;
+	const issues: string[] = [];
 
 	const rawProperty = typeof input.property === 'string' ? input.property : '';
 	const property = rawProperty.trim();
@@ -131,8 +146,10 @@ export function normalizeSignalRule(input: SignalRule): { rule: SignalRule; chan
 
 	if (input.icon !== undefined) {
 		const icon = typeof input.icon === 'string' ? input.icon.trim() : '';
-		if (icon === '') changed = true;
-		else {
+		if (icon === '') {
+			changed = true;
+			issues.push('icon');
+		} else {
 			out.icon = icon;
 			if (icon !== input.icon) changed = true;
 		}
@@ -141,16 +158,20 @@ export function normalizeSignalRule(input: SignalRule): { rule: SignalRule; chan
 		const v = input[key];
 		if (v === undefined) continue;
 		const c = typeof v === 'string' && HEX_COLOR_RE.test(v) ? v.toLowerCase() : null;
-		if (c === null) changed = true;
-		else {
+		if (c === null) {
+			changed = true;
+			issues.push(key);
+		} else {
 			out[key] = c;
 			if (c !== v) changed = true;
 		}
 	}
 	if (input.marker !== undefined) {
 		const mk = normalizeMarker(input.marker);
-		if (mk === null) changed = true;
-		else {
+		if (mk === null) {
+			changed = true;
+			issues.push('marker');
+		} else {
 			out.marker = mk;
 			if (mk !== input.marker) changed = true;
 		}
@@ -163,5 +184,5 @@ export function normalizeSignalRule(input: SignalRule): { rule: SignalRule; chan
 		out.rowBackground !== undefined ||
 		out.marker !== undefined;
 	if (!hasChannel) return null;
-	return { rule: out, changed };
+	return { rule: out, changed, issues };
 }

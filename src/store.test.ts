@@ -35,13 +35,14 @@ describe('parseData: signals', () => {
 		expect(r.signalsRepaired).toBe(true);
 	});
 
-	it('drops one invalid channel but keeps the rule', () => {
+	it('drops one invalid channel but keeps the rule, with a field-specific warning', () => {
 		const r = parseData({
 			version: 1,
 			signals: [{ id: 'a', enabled: true, property: 'state', equals: 'draft', textColor: 'red', marker: '●' }],
 		});
 		expect(r.data.signals[0]?.textColor).toBeUndefined();
 		expect(r.data.signals[0]?.marker).toBe('●');
+		expect(r.warnings.some((w) => w.includes('textColor'))).toBe(true);
 	});
 
 	it('drops a rule with zero valid channels', () => {
@@ -141,9 +142,19 @@ describe('Store: signal mutations', () => {
 		expect(store.addSignalRule({ ...base('b'), property: '  ' })).toBe(false); // normalizes to null
 		expect(store.addSignalRule({ ...base('c'), marker: undefined })).toBe(false); // no channel
 		expect(store.addSignalRule(base('a'))).toBe(false); // duplicate id
+		expect(store.addSignalRule({ ...base('b'), id: '' })).toBe(false); // empty id
+		expect(store.addSignalRule({ ...base('c'), id: 'x'.repeat(65) })).toBe(false); // oversized id
 		expect(store.state.signals.map((r) => r.id)).toEqual(['a']);
 		await store.flush();
 		expect(saves[saves.length - 1]?.signals).toHaveLength(1);
+	});
+
+	it('rejects duplication into an empty or oversized id', async () => {
+		const { store } = await makeStore();
+		store.addSignalRule(base('a'));
+		expect(store.duplicateSignalRule('a', '')).toBe(false);
+		expect(store.duplicateSignalRule('a', 'y'.repeat(65))).toBe(false);
+		expect(store.state.signals).toHaveLength(1);
 	});
 
 	it('normalizes channels through the shared validator on add', async () => {

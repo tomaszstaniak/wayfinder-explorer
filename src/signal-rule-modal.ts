@@ -4,9 +4,7 @@ import { IconPickerModal } from './icon-picker';
 import { IconSource } from './icons';
 import { PropertyStat } from './frontmatter-inventory';
 import { normalizeSignalRule } from './signal-resolve';
-import { SignalRule } from './types';
-
-const SIGNAL_BG_ALPHA = 18;
+import { SIGNAL_BG_ALPHA, SignalRule } from './types';
 
 /** Fuzzy picker over a fixed string list; custom entry is handled by the caller. */
 export class StringSuggestModal extends FuzzySuggestModal<string> {
