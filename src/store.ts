@@ -17,10 +17,13 @@ import {
 	HEX_COLOR_RE,
 	SCHEMA_VERSION,
 	SETTINGS_BOUNDS,
+	SIGNAL_LIMITS,
+	SignalRule,
 	WayfinderData,
 	WayfinderSettings,
 	defaultData,
 } from './types';
+import { normalizeSignalRule, signalRulesEqual } from './signal-resolve';
 
 /** Abstracts Obsidian's Plugin.loadData/saveData for testability. */
 export interface Persistence {
@@ -33,6 +36,8 @@ export interface ParseResult {
 	warnings: string[];
 	/** True when top-level data was unusable and defaults were substituted. */
 	recovered: boolean;
+	/** True when signals were dropped/normalized/id-repaired and should be re-persisted. */
+	signalsRepaired: boolean;
 }
 
 export function normalizePath(input: unknown): string | null {
@@ -212,6 +217,74 @@ function parseSettings(raw: unknown): WayfinderSettings {
 	};
 }
 
+/** Shape a raw entry into a SignalRule; normalizeSignalRule guards field types. */
+function coerceRawRule(raw: unknown): SignalRule | null {
+	if (!isRecord(raw)) return null;
+	return {
+		id: typeof raw.id === 'string' ? raw.id : '',
+		enabled: raw.enabled as boolean,
+		property: raw.property as string,
+		equals: raw.equals as string,
+		icon: raw.icon as string | undefined,
+		iconColor: raw.iconColor as string | undefined,
+		textColor: raw.textColor as string | undefined,
+		rowBackground: raw.rowBackground as string | undefined,
+		marker: raw.marker as string | undefined,
+	};
+}
+
+/**
+ * Defensive parse of the signal-rule collection. Never throws.
+ * - Each entry runs through the shared normalizer (drop invalid channels/rules).
+ * - Two-pass id repair reserves valid unique ids, then fills the rest from the
+ *   ORIGINAL index, suffixing until unused (never colliding with a valid id).
+ * - repaired = any rule normalized, dropped, or id-repaired (persist once).
+ */
+export function parseSignals(
+	raw: unknown,
+	warnings: string[]
+): { rules: SignalRule[]; repaired: boolean } {
+	if (raw === undefined) return { rules: [], repaired: false };
+	if (!Array.isArray(raw)) {
+		warnings.push('Wayfinder: signals was not an array; ignoring.');
+		return { rules: [], repaired: true };
+	}
+	const survivors: { rule: SignalRule; originalIndex: number }[] = [];
+	let anyChanged = false;
+	raw.forEach((entry, i) => {
+		const coerced = coerceRawRule(entry);
+		const norm = coerced ? normalizeSignalRule(coerced) : null;
+		if (!norm) {
+			warnings.push(`Wayfinder: dropped invalid signal rule at index ${i}.`);
+			return;
+		}
+		if (norm.changed) anyChanged = true;
+		survivors.push({ rule: norm.rule, originalIndex: i });
+	});
+
+	let repaired = anyChanged || survivors.length !== raw.length;
+	const finalIds: (string | null)[] = survivors.map(() => null);
+	const reserved = new Set<string>();
+	survivors.forEach((s, idx) => {
+		const id = s.rule.id;
+		if (id !== '' && id.length <= SIGNAL_LIMITS.idMax && !reserved.has(id)) {
+			reserved.add(id);
+			finalIds[idx] = id;
+		}
+	});
+	survivors.forEach((s, idx) => {
+		if (finalIds[idx] != null) return;
+		repaired = true;
+		let candidate = `wf-signal-${s.originalIndex}`;
+		let n = 1;
+		while (reserved.has(candidate)) candidate = `wf-signal-${s.originalIndex}-${n++}`;
+		reserved.add(candidate);
+		finalIds[idx] = candidate;
+	});
+	const rules = survivors.map((s, idx) => ({ ...s.rule, id: finalIds[idx] as string }));
+	return { rules, repaired };
+}
+
 /**
  * Defensive parse of persisted data. Never throws.
  * - missing data -> defaults
@@ -222,15 +295,15 @@ function parseSettings(raw: unknown): WayfinderSettings {
 export function parseData(raw: unknown): ParseResult {
 	const warnings: string[] = [];
 	if (raw === null || raw === undefined) {
-		return { data: defaultData(), warnings, recovered: false };
+		return { data: defaultData(), warnings, recovered: false, signalsRepaired: false };
 	}
 	if (!isRecord(raw)) {
 		warnings.push('Wayfinder: stored data was not an object; using defaults.');
-		return { data: defaultData(), warnings, recovered: true };
+		return { data: defaultData(), warnings, recovered: true, signalsRepaired: false };
 	}
 	if ('version' in raw && raw.version !== SCHEMA_VERSION) {
 		warnings.push(`Wayfinder: unknown data version ${String(raw.version)}; using defaults.`);
-		return { data: defaultData(), warnings, recovered: true };
+		return { data: defaultData(), warnings, recovered: true, signalsRepaired: false };
 	}
 
 	const data = defaultData();
@@ -258,7 +331,10 @@ export function parseData(raw: unknown): ParseResult {
 		data.files[path] = entry;
 	}
 
-	return { data, warnings, recovered: false };
+	const signalsResult = parseSignals(raw.signals, warnings);
+	data.signals = signalsResult.rules;
+
+	return { data, warnings, recovered: false, signalsRepaired: signalsResult.repaired };
 }
 
 function isPrefixed(key: string, folderPath: string): boolean {
@@ -325,6 +401,8 @@ export class Store {
 		const result = parseData(raw);
 		this.data = result.data;
 		this.loadWarnings.push(...result.warnings);
+		// Normalize repaired signal ids / dropped rules on disk once (no subscribers yet).
+		if (result.signalsRepaired) this.commit();
 	}
 
 	get state(): Readonly<WayfinderData> {
@@ -520,6 +598,73 @@ export class Store {
 		this.data = { ...this.data, settings: next };
 		this.commit();
 		return true;
+	}
+
+	// --- signal rules -----------------------------------------------------
+
+	private setSignals(next: SignalRule[]): boolean {
+		if (signalRulesEqual(this.data.signals, next)) return false;
+		this.data = { ...this.data, signals: next };
+		this.commit();
+		return true;
+	}
+
+	/** Append a rule; rejects invalid rules and duplicate ids. */
+	addSignalRule(rule: SignalRule): boolean {
+		const norm = normalizeSignalRule(rule);
+		if (!norm) return false;
+		if (this.data.signals.some((r) => r.id === norm.rule.id)) return false;
+		return this.setSignals([...this.data.signals, norm.rule]);
+	}
+
+	/** Patch a rule by id (id is immutable); rejects a patch that invalidates it. */
+	updateSignalRule(id: string, patch: Partial<Omit<SignalRule, 'id'>>): boolean {
+		const idx = this.data.signals.findIndex((r) => r.id === id);
+		if (idx < 0) return false;
+		const existing = this.data.signals[idx];
+		if (!existing) return false;
+		const norm = normalizeSignalRule({ ...existing, ...patch, id });
+		if (!norm) return false;
+		const next = this.data.signals.slice();
+		next[idx] = norm.rule;
+		return this.setSignals(next);
+	}
+
+	moveSignalRule(id: string, direction: -1 | 1): boolean {
+		const i = this.data.signals.findIndex((r) => r.id === id);
+		if (i < 0) return false;
+		const j = i + direction;
+		if (j < 0 || j >= this.data.signals.length) return false;
+		const next = this.data.signals.slice();
+		const a = next[i];
+		const b = next[j];
+		if (!a || !b) return false;
+		next[i] = b;
+		next[j] = a;
+		return this.setSignals(next);
+	}
+
+	duplicateSignalRule(id: string, newId: string): boolean {
+		const i = this.data.signals.findIndex((r) => r.id === id);
+		if (i < 0) return false;
+		const source = this.data.signals[i];
+		if (!source) return false;
+		if (this.data.signals.some((r) => r.id === newId)) return false;
+		const norm = normalizeSignalRule({ ...source, id: newId });
+		if (!norm) return false;
+		const next = this.data.signals.slice();
+		next.splice(i + 1, 0, norm.rule);
+		return this.setSignals(next);
+	}
+
+	removeSignalRule(id: string): boolean {
+		const next = this.data.signals.filter((r) => r.id !== id);
+		if (next.length === this.data.signals.length) return false;
+		return this.setSignals(next);
+	}
+
+	setSignalRuleEnabled(id: string, enabled: boolean): boolean {
+		return this.updateSignalRule(id, { enabled });
 	}
 
 	/**
