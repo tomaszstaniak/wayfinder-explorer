@@ -42,12 +42,10 @@ Recurrence (`🔁`) is not free to own — it needs deliberate rules (syntax par
 
 The global pane's "This note" scope supersedes the old per-note sidebar, so it was removed (view, `showTaskSidebar` setting, ribbon, `open-tasks-view` command, `task-sidebar.ts`, and the now-unused `renderTaskList`). Two overlapping task surfaces isn't worth maintaining. On load, any leaf restored from an old layout is detached via a one-time `detachLeavesOfType('wayfinder-tasks')`. Legacy `showTaskSidebar` values in saved settings are simply ignored.
 
-## Frontmatter signals precedence and matching (design accepted 2026-07-25)
+## Frontmatter signals precedence and matching (shipped v0.7.0)
 
-> Status: design accepted; implementation on `feat/frontmatter-signals` is complete with unit
-> tests but **not yet manually verified in Obsidian**. This records the accepted design, not
-> confirmed shipped behavior. Promote to shipped (and update `architecture.md`) after the manual
-> verification matrix passes.
+> Status: **shipped in v0.7.0**. Design accepted 2026-07-25; unit-tested and manually verified in
+> Obsidian (16-point GUI matrix) before release.
 
 Frontmatter signals is a metadata lens for the file explorer — recognition while navigating, not a
 query language. Accepted contract:
