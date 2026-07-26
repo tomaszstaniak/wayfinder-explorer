@@ -24,6 +24,14 @@ import { countOpenTasksInText, rollUpToFolders } from './task-count';
 import { TASKS_IN_NOTE_BLOCK, TASKS_DASHBOARD_BLOCK, blockInsertText } from './task-query';
 import { TaskIndex, type TaskIndexIO } from './task-index';
 import { VIEW_TYPE_GLOBAL_TASKS, WayfinderGlobalTasksView } from './task-global-view';
+import {
+	resolveSignal,
+	resolvedSignalEqual,
+	resolvedSignalMapsEqual,
+	signalRulesEqual,
+} from './signal-resolve';
+import { buildInventory, PropertyStat } from './frontmatter-inventory';
+import { ResolvedSignal, SignalRule } from './types';
 
 export default class WayfinderPlugin extends Plugin {
 	private styleManager!: StyleManager;
@@ -36,6 +44,12 @@ export default class WayfinderPlugin extends Plugin {
 	private emptyFiles = new Set<string>();
 	/** Open-task count per note (only notes with >0), from file content. */
 	private taskCountByFile = new Map<string, number>();
+	/** path -> resolved frontmatter signal (only files that produce one). */
+	private signalsByPath = new Map<string, ResolvedSignal>();
+	/** True once metadataCache has resolved at least once this session. */
+	private metadataReady = false;
+	/** Shared icon resolver (also used for signal icon availability). */
+	iconResolver!: IconResolver;
 	/** Path of the note currently being edited, and its linger timer. */
 	private editingPath: string | null = null;
 	private editingTimer: number | null = null;
@@ -54,7 +68,7 @@ export default class WayfinderPlugin extends Plugin {
 			ids: () => getIconIds(),
 			svg: (name) => getIcon(name),
 		};
-		const resolver = new IconResolver(this.iconSource);
+		this.iconResolver = new IconResolver(this.iconSource);
 
 		this.store = new Store({
 			load: () => this.loadData() as Promise<unknown>,
@@ -63,7 +77,7 @@ export default class WayfinderPlugin extends Plugin {
 
 		this.controller = new Controller({
 			store: this.store,
-			resolve: resolver.resolve,
+			resolve: this.iconResolver.resolve,
 			hostData: () => this.hostData(),
 			setCss: (css) => this.styleManager.setCss(css),
 			warn: (msg) => console.warn(msg),
@@ -120,11 +134,17 @@ export default class WayfinderPlugin extends Plugin {
 
 		// Rescan open-task counts when the feature is switched on.
 		let taskCountsOn = this.store.state.settings.showTaskCounts;
+		let lastSignals: SignalRule[] = this.store.state.signals;
 		this.store.subscribe(() => {
 			const on = this.store.state.settings.showTaskCounts;
 			if (on !== taskCountsOn) {
 				taskCountsOn = on;
 				void this.scanTaskCounts();
+			}
+			const nowSignals = this.store.state.signals;
+			if (!signalRulesEqual(lastSignals, nowSignals)) {
+				lastSignals = nowSignals;
+				this.scanSignals();
 			}
 			this.syncGlobalTaskPane();
 		});
@@ -143,6 +163,7 @@ export default class WayfinderPlugin extends Plugin {
 					this.taskCountByFile.delete(oldPath);
 					this.controller.requestRecompile();
 				}
+				this.handleSignalRename(file, oldPath);
 				this.countsChanged();
 			})
 		);
@@ -152,6 +173,7 @@ export default class WayfinderPlugin extends Plugin {
 				if (this.contentIcons.delete(file.path)) this.controller.requestRecompile();
 				if (this.emptyFiles.delete(file.path)) this.controller.requestRecompile();
 				if (this.taskCountByFile.delete(file.path)) this.controller.requestRecompile();
+				if (this.signalsByPath.delete(file.path)) this.controller.requestRecompile();
 				this.countsChanged();
 			})
 		);
@@ -178,13 +200,16 @@ export default class WayfinderPlugin extends Plugin {
 			this.app.metadataCache.on('changed', (file) => {
 				this.updateContentIcons(file);
 				void this.updateFileTaskCount(file);
+				this.updateFileSignal(file);
 			})
 		);
 		// Initial scan once all metadata is indexed (also fires on startup).
 		this.registerEvent(
 			this.app.metadataCache.on('resolved', () => {
+				this.metadataReady = true;
 				this.scanContentIcons();
 				this.scanEmptyFiles();
+				this.scanSignals();
 			})
 		);
 		this.addCommand({
@@ -419,7 +444,86 @@ export default class WayfinderPlugin extends Plugin {
 		if (this.store.state.settings.showTaskCounts) {
 			host.taskCounts = this.openTaskCounts();
 		}
+		if (this.hasEnabledSignals() && this.signalsByPath.size > 0) {
+			host.signals = this.signalsByPath;
+		}
 		return host;
+	}
+
+	// --- frontmatter signals ----------------------------------------------
+
+	private hasEnabledSignals(): boolean {
+		return this.store.state.signals.some((r) => r.enabled);
+	}
+
+	isMetadataReady(): boolean {
+		return this.metadataReady;
+	}
+
+	private computeSignal(file: TFile): ResolvedSignal | null {
+		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
+		if (!fm) return null;
+		return resolveSignal(fm, this.store.state.signals, {
+			isIconAvailable: (name) => this.iconResolver.resolve(name) !== null,
+		});
+	}
+
+	/** Recompute one file's signal; recompile only when it changed. */
+	private updateFileSignal(file: unknown): void {
+		if (!(file instanceof TFile) || file.extension !== 'md') return;
+		if (!this.hasEnabledSignals()) return;
+		const next = this.computeSignal(file);
+		const prev = this.signalsByPath.get(file.path) ?? null;
+		if (resolvedSignalEqual(prev, next)) return;
+		if (next) this.signalsByPath.set(file.path, next);
+		else this.signalsByPath.delete(file.path);
+		this.controller.requestRecompile();
+	}
+
+	/** Move/remove/recompute a signal entry across a rename's extension transition. */
+	private handleSignalRename(file: unknown, oldPath: string): void {
+		if (!this.hasEnabledSignals()) return;
+		const wasMd = oldPath.endsWith('.md');
+		const isNowMd = file instanceof TFile && file.extension === 'md';
+		if (wasMd && isNowMd && file instanceof TFile) {
+			const sig = this.signalsByPath.get(oldPath);
+			if (this.signalsByPath.delete(oldPath)) {
+				if (sig) this.signalsByPath.set(file.path, sig);
+				this.controller.requestRecompile();
+			}
+		} else if (wasMd && !isNowMd) {
+			if (this.signalsByPath.delete(oldPath)) this.controller.requestRecompile();
+		} else if (!wasMd && isNowMd) {
+			this.updateFileSignal(file);
+		}
+	}
+
+	/** Full rescan (rule change / metadata resolved). Clears when disabled. */
+	private scanSignals(): void {
+		if (!this.hasEnabledSignals()) {
+			if (this.signalsByPath.size > 0) {
+				this.signalsByPath = new Map();
+				this.controller.requestRecompile();
+			}
+			return;
+		}
+		const next = new Map<string, ResolvedSignal>();
+		for (const file of this.app.vault.getMarkdownFiles()) {
+			const sig = this.computeSignal(file);
+			if (sig) next.set(file.path, sig);
+		}
+		if (resolvedSignalMapsEqual(this.signalsByPath, next)) return;
+		this.signalsByPath = next;
+		this.controller.requestRecompile();
+	}
+
+	/** Lazy inventory for settings; in-memory metadata only. */
+	buildSignalInventory(): PropertyStat[] {
+		return buildInventory(
+			this.app.vault.getMarkdownFiles().map((f) => ({
+				frontmatter: this.app.metadataCache.getFileCache(f)?.frontmatter,
+			}))
+		);
 	}
 
 	private isEmptyNote(file: unknown): file is TFile {

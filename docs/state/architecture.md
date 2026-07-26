@@ -8,7 +8,32 @@ Scope: current plugin architecture
 
 - Explorer customization lives in compiler/controller/store/style modules.
 - Task parsing and rendering are isolated in task-specific modules.
+- Frontmatter signals style explorer rows from top-level scalar frontmatter.
 - Settings are persisted through `Store` and surfaced in `WayfinderSettingTab`.
+
+## Frontmatter signals
+
+A metadata lens for the file explorer (recognition while navigating, not a query language).
+Shipped in v0.7.0.
+
+- **Pure core** (Obsidian-agnostic, unit-tested):
+  - `signal-match.ts`: scalar canonicalization + lenient value matching + grapheme counting.
+  - `signal-resolve.ts`: `resolveSignal` (first-match-wins per channel), `normalizeSignalRule`
+    (the single validator shared by parser and every store mutation), `isValidSignalId`, and the
+    equality helpers (`resolvedSignalEqual`, `resolvedSignalMapsEqual`, `signalRulesEqual`).
+  - `frontmatter-inventory.ts`: `buildInventory` for the settings property/value discovery.
+- **Discovery is metadataCache-only** — never reads note bodies from disk.
+- **Storage**: an additive `signals: SignalRule[]` on `WayfinderData` under schema version 1 (no
+  bump); the store parses defensively with two-pass, collision-free id repair and re-persists once.
+- **Runtime**: `main.ts` owns `signalsByPath` (`Map<path, ResolvedSignal>`), maintained incrementally
+  from `metadataCache` changed/resolved and vault rename/delete events, gated on ≥1 enabled rule.
+- **Compiler seam**: resolved signals flow in via `HostData.signals`; the compiler emits an
+  already-resolved layer between folder color scopes and manual overrides.
+- **CSS precedence (per channel a signal sets)**: `defaults < content detection < folder-derived <
+  signals < manual per-file`. Transient UI stays highest — the editing indicator over the icon,
+  and selection/focus/drag over signal text/background (via the row state guard).
+- **Settings**: `WayfinderSettingTab` renders an ordered rule list; `signal-rule-modal.ts` edits a
+  rule with a five-channel live preview.
 
 ## Task modules
 

@@ -40,6 +40,43 @@ Projects most saturated, Areas medium, Resources low, Archive dimmed and
 colorless, Inbox with a count badge. It writes ordinary Wayfinder
 assignments: adjust or undo any of it from the folder context menu.
 
+## Frontmatter signals
+
+Recognize a note's *state* while navigating — without opening it or writing a
+Dataview. Define ordered rules that conditionally style file-explorer entries
+from their **top-level frontmatter**. Given:
+
+```yaml
+---
+state: draft
+---
+```
+
+a rule `state = draft` can tint the row, add an icon, or drop a marker beside
+the name. Each rule can set any combination of five channels:
+
+- **Icon**, **icon color**, **text color**, **row background**, and a
+  **marker** (an emoji, symbol, or short badge after the name).
+
+Configure it in **Settings → Wayfinder → Frontmatter signals**: add a rule,
+pick a property (suggested from your vault, or type your own), enter a value,
+and choose channels — with a live preview.
+
+**Matching.** Property names are matched exactly and are case-sensitive.
+Scalar values are trimmed and case-insensitive (`Active` matches `active`),
+and the boolean `true` matches the entered value `true`. Rules run
+top-to-bottom; for each channel, the **first matching rule wins**, so a
+high-priority rule can set the text color while a lower one still supplies the
+marker. Move a rule up to give it priority.
+
+**Precedence.** A signal overrides folder-derived styling only for the
+channels it actually sets — a rule that supplies just a marker leaves the
+folder's colors untouched. Manual per-file icon and icon-color overrides
+(right-click → Wayfinder) still win over signals.
+
+Wayfinder only *reads* frontmatter for this feature (via Obsidian's metadata
+cache) and never writes or modifies your notes.
+
 ## Tasks
 
 Wayfinder doesn't replace the [Tasks](https://publish.obsidian.md/tasks/)

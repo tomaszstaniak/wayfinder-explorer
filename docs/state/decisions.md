@@ -41,3 +41,27 @@ Recurrence (`🔁`) is not free to own — it needs deliberate rules (syntax par
 ## Retired the per-note Tasks sidebar (v0.6.0)
 
 The global pane's "This note" scope supersedes the old per-note sidebar, so it was removed (view, `showTaskSidebar` setting, ribbon, `open-tasks-view` command, `task-sidebar.ts`, and the now-unused `renderTaskList`). Two overlapping task surfaces isn't worth maintaining. On load, any leaf restored from an old layout is detached via a one-time `detachLeavesOfType('wayfinder-tasks')`. Legacy `showTaskSidebar` values in saved settings are simply ignored.
+
+## Frontmatter signals precedence and matching (shipped v0.7.0)
+
+> Status: **shipped in v0.7.0**. Design accepted 2026-07-25; unit-tested and manually verified in
+> Obsidian (16-point GUI matrix) before release.
+
+Frontmatter signals is a metadata lens for the file explorer — recognition while navigating, not a
+query language. Accepted contract:
+
+- **Per-channel precedence** (only channels a signal sets): `defaults < built-in detection <
+  folder-derived < signals < manual per-file`. Transient UI wins over all: the editing indicator
+  overrides the icon; selection/focus/drag override signal text/background (via `ROW_STATE_GUARD`).
+- **Matching:** keys exact, own-property (`hasOwnProperty`), case-sensitive; values lenient (trimmed,
+  locale-independent lowercase; `true` == "true"; finite numbers only; `"01"` ≠ `1`; null/array/object
+  never match).
+- **Conflicts:** ordered rules, index 0 highest; first matching rule wins each channel independently.
+- **Channels (v1):** icon, iconColor, textColor, rowBackground, marker; dimming deferred. Row
+  background blended at a fixed 18%.
+- **Data/runtime:** additive `signals: SignalRule[]` under schema version 1 (no bump); a shared
+  `normalizeSignalRule` guards parser and every mutation; ids repaired via a two-pass, collision-free
+  scheme and re-persisted once. Resolution is metadataCache-only (never disk), maintained incrementally
+  and gated on ≥1 enabled rule (zero cost otherwise). Signals never write user frontmatter.
+- **Downgrade limitation (accepted):** an older Wayfinder build drops the unknown `signals` field on
+  its next save. Inherent to parse-and-rewrite; not solved in v1.

@@ -1,7 +1,7 @@
 import { deriveChildColors } from './color-utils';
 import { escapeCssString } from './escape';
 import { FILE_FALLBACK_ICON, FOLDER_ICON, SUFFIX_ICONS } from './icons';
-import { WayfinderData } from './types';
+import { ResolvedSignal, SIGNAL_BG_ALPHA, WayfinderData } from './types';
 
 /** Every selector is rooted here so nothing outside the explorer is touched. */
 const SCOPE = '.workspace-leaf-content[data-type="file-explorer"]';
@@ -97,6 +97,8 @@ export interface HostData {
 	editingFile?: string | null;
 	/** Open-task counts per folder subtree (the accent task pill). */
 	taskCounts?: FolderCounts;
+	/** Resolved frontmatter-signal output per file path; provided by the host. */
+	signals?: ReadonlyMap<string, ResolvedSignal>;
 }
 
 /**
@@ -211,6 +213,61 @@ function emphasisRules(state: WayfinderData): string[] {
 			parts.push(`${rows} { opacity: 0.6; filter: saturate(0.35); }`);
 		} else {
 			parts.push(`${rows} { opacity: 1; filter: none; }`);
+		}
+	}
+	return parts;
+}
+
+/** File row selector with the shared state guard (files have no subtree). */
+function fileRowGuarded(escaped: string): string {
+	return `${SCOPE} .nav-file-title[data-path="${escaped}"]${ROW_STATE_GUARD}`;
+}
+
+/**
+ * Signal layer: already-resolved per-file channels. Emitted after folder color
+ * scopes and before manual overrides, so signals beat folder styling per channel
+ * while manual per-file still wins. Icon uses the shared resolver + missing set.
+ */
+function signalRules(
+	signals: ReadonlyMap<string, ResolvedSignal>,
+	icon: (candidates: readonly string[]) => string | null
+): string[] {
+	const entries = [...signals.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
+	const parts: string[] = [];
+	if (entries.some(([, s]) => s.marker !== undefined)) {
+		parts.push(
+			`${SCOPE} .nav-file-title-content::after {`,
+			`\tfont-size: var(--font-smallest, 0.8em);`,
+			`\tmargin-inline-start: var(--size-2-2, 4px);`,
+			`\topacity: 0.85;`,
+			`}`
+		);
+	}
+	for (const [path, s] of entries) {
+		const esc = escapeCssString(path);
+		if (s.icon) {
+			const uri = icon([s.icon]);
+			if (uri) {
+				parts.push(
+					`${SCOPE} .nav-file-title[data-path="${esc}"] .nav-file-title-content::before { ${iconVars(uri)} }`
+				);
+			}
+		}
+		if (s.iconColor) {
+			parts.push(`${SCOPE} .nav-file-title[data-path="${esc}"] { --wf-icon-color: ${s.iconColor}; }`);
+		}
+		if (s.textColor) {
+			parts.push(`${fileRowGuarded(esc)} .nav-file-title-content { color: ${s.textColor}; }`);
+		}
+		if (s.rowBackground) {
+			parts.push(
+				`${fileRowGuarded(esc)} { background-color: color-mix(in srgb, ${s.rowBackground} ${SIGNAL_BG_ALPHA}%, transparent); }`
+			);
+		}
+		if (s.marker) {
+			parts.push(
+				`${SCOPE} .nav-file-title[data-path="${esc}"] .nav-file-title-content::after { content: "${escapeCssString(s.marker)}"; }`
+			);
 		}
 	}
 	return parts;
@@ -402,6 +459,12 @@ export function compile(
 		parts.push(
 			`${SCOPE} .nav-folder:has(> .nav-folder-title[data-path="${esc}"]) > .nav-folder-children { border-inline-start: ${state.settings.lineWidth}px solid color-mix(in srgb, ${color} ${LINE_COLOR_MIX}%, transparent); }`
 		);
+	}
+
+	// --- layer 3.5: frontmatter signals (beat folder styles per channel, lose
+	// to manual per-file) --------------------------------------------------
+	if (host.signals && host.signals.size > 0) {
+		parts.push(...signalRules(host.signals, icon));
 	}
 
 	// --- layer 4: manual icon overrides (win over defaults) ---------------

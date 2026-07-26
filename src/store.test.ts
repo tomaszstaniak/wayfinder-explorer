@@ -21,6 +21,193 @@ async function makeStore(initial: unknown = null) {
 	return { store, saves };
 }
 
+describe('parseData: signals', () => {
+	it('drops rules with empty property or value, keeps valid ones', () => {
+		const r = parseData({
+			version: 1,
+			signals: [
+				{ id: 'a', enabled: true, property: '', equals: 'x', marker: '!' },
+				{ id: 'b', enabled: true, property: 'state', equals: 'draft', textColor: '#112233' },
+			],
+		});
+		expect(r.data.signals).toHaveLength(1);
+		expect(r.data.signals[0]).toMatchObject({ id: 'b', property: 'state', equals: 'draft', textColor: '#112233' });
+		expect(r.signalsRepaired).toBe(true);
+	});
+
+	it('drops one invalid channel but keeps the rule, with a field-specific warning', () => {
+		const r = parseData({
+			version: 1,
+			signals: [{ id: 'a', enabled: true, property: 'state', equals: 'draft', textColor: 'red', marker: '●' }],
+		});
+		expect(r.data.signals[0]?.textColor).toBeUndefined();
+		expect(r.data.signals[0]?.marker).toBe('●');
+		expect(r.warnings.some((w) => w.includes('textColor'))).toBe(true);
+	});
+
+	it('drops a rule with zero valid channels', () => {
+		const r = parseData({
+			version: 1,
+			signals: [{ id: 'a', enabled: true, property: 'state', equals: 'draft', textColor: 'nope' }],
+		});
+		expect(r.data.signals).toHaveLength(0);
+	});
+
+	it('rejects multiline and control-character markers', () => {
+		const r = parseData({
+			version: 1,
+			signals: [{ id: 'a', enabled: true, property: 's', equals: 'v', marker: 'a\nb', iconColor: '#112233' }],
+		});
+		expect(r.data.signals[0]?.marker).toBeUndefined();
+		expect(r.data.signals[0]?.iconColor).toBe('#112233');
+	});
+
+	it('rejects markers longer than 8 grapheme clusters', () => {
+		const r = parseData({
+			version: 1,
+			signals: [{ id: 'a', enabled: true, property: 's', equals: 'v', marker: '123456789', iconColor: '#112233' }],
+		});
+		expect(r.data.signals[0]?.marker).toBeUndefined();
+	});
+
+	it('repairs missing/duplicate ids without colliding with a valid wf-signal-0', () => {
+		const r = parseData({
+			version: 1,
+			signals: [
+				{ id: 'wf-signal-0', enabled: true, property: 'a', equals: '1', marker: 'x' },
+				{ enabled: true, property: 'b', equals: '2', marker: 'y' },
+				{ id: 'wf-signal-0', enabled: true, property: 'c', equals: '3', marker: 'z' },
+			],
+		});
+		const ids = r.data.signals.map((s) => s.id);
+		expect(new Set(ids).size).toBe(3);
+		expect(ids[0]).toBe('wf-signal-0');
+		expect(r.signalsRepaired).toBe(true);
+	});
+
+	it('preserves original index for repair even after earlier drops', () => {
+		const r = parseData({
+			version: 1,
+			signals: [
+				{ id: 'x', enabled: true, property: '', equals: '', marker: 'bad' },
+				{ enabled: true, property: 'b', equals: '2', marker: 'y' },
+			],
+		});
+		expect(r.data.signals).toHaveLength(1);
+		expect(r.data.signals[0]?.id).toBe('wf-signal-1');
+	});
+
+	it('defaults enabled to true when absent', () => {
+		const r = parseData({ version: 1, signals: [{ id: 'a', property: 's', equals: 'v', marker: '●' }] });
+		expect(r.data.signals[0]?.enabled).toBe(true);
+	});
+
+	it('ignores a non-array signals field', () => {
+		const r = parseData({ version: 1, signals: { nope: true } });
+		expect(r.data.signals).toEqual([]);
+	});
+
+	it('persists the normalized collection once when repaired on load', async () => {
+		const { store, saves } = await makeStore({
+			version: 1,
+			signals: [{ enabled: true, property: 's', equals: 'v', marker: '●' }],
+		});
+		await store.flush();
+		expect(saves).toHaveLength(1);
+		expect(saves[0]?.signals[0]?.id).toBe('wf-signal-0');
+	});
+
+	it('does not persist when signals need no repair', async () => {
+		const { store, saves } = await makeStore({
+			version: 1,
+			signals: [{ id: 'keep', enabled: true, property: 's', equals: 'v', marker: '●' }],
+		});
+		await store.flush();
+		expect(saves).toHaveLength(0);
+	});
+});
+
+describe('Store: signal mutations', () => {
+	const base = (id: string): import('./types').SignalRule => ({
+		id,
+		enabled: true,
+		property: 'state',
+		equals: id,
+		marker: '●',
+	});
+
+	it('adds, rejects empties/invalid, rejects duplicate ids, and persists', async () => {
+		const { store, saves } = await makeStore();
+		expect(store.addSignalRule(base('a'))).toBe(true);
+		expect(store.addSignalRule({ ...base('b'), property: '  ' })).toBe(false); // normalizes to null
+		expect(store.addSignalRule({ ...base('c'), marker: undefined })).toBe(false); // no channel
+		expect(store.addSignalRule(base('a'))).toBe(false); // duplicate id
+		expect(store.addSignalRule({ ...base('b'), id: '' })).toBe(false); // empty id
+		expect(store.addSignalRule({ ...base('c'), id: 'x'.repeat(65) })).toBe(false); // oversized id
+		expect(store.state.signals.map((r) => r.id)).toEqual(['a']);
+		await store.flush();
+		expect(saves[saves.length - 1]?.signals).toHaveLength(1);
+	});
+
+	it('rejects duplication into an empty or oversized id', async () => {
+		const { store } = await makeStore();
+		store.addSignalRule(base('a'));
+		expect(store.duplicateSignalRule('a', '')).toBe(false);
+		expect(store.duplicateSignalRule('a', 'y'.repeat(65))).toBe(false);
+		expect(store.state.signals).toHaveLength(1);
+	});
+
+	it('normalizes channels through the shared validator on add', async () => {
+		const { store } = await makeStore();
+		store.addSignalRule({ ...base('a'), iconColor: '#ABCDEF', textColor: 'red' });
+		expect(store.state.signals[0]?.iconColor).toBe('#abcdef');
+		expect(store.state.signals[0]?.textColor).toBeUndefined();
+	});
+
+	it('updates a rule by id but never changes the id', async () => {
+		const { store } = await makeStore();
+		store.addSignalRule(base('a'));
+		expect(store.updateSignalRule('a', { marker: '×' })).toBe(true);
+		expect(store.state.signals[0]).toMatchObject({ id: 'a', marker: '×' });
+		expect(store.updateSignalRule('missing', { marker: '!' })).toBe(false);
+	});
+
+	it('rejects an update that would make the rule invalid', async () => {
+		const { store } = await makeStore();
+		store.addSignalRule(base('a'));
+		expect(store.updateSignalRule('a', { property: '' })).toBe(false);
+		expect(store.state.signals[0]?.property).toBe('state');
+	});
+
+	it('moves rules within bounds', async () => {
+		const { store } = await makeStore();
+		store.addSignalRule(base('a'));
+		store.addSignalRule(base('b'));
+		expect(store.moveSignalRule('b', -1)).toBe(true);
+		expect(store.state.signals.map((r) => r.id)).toEqual(['b', 'a']);
+		expect(store.moveSignalRule('b', -1)).toBe(false);
+	});
+
+	it('duplicates after the original with a new id, rejecting a colliding new id', async () => {
+		const { store } = await makeStore();
+		store.addSignalRule(base('a'));
+		store.addSignalRule(base('b'));
+		expect(store.duplicateSignalRule('a', 'b')).toBe(false); // id collision
+		expect(store.duplicateSignalRule('a', 'a2')).toBe(true);
+		expect(store.state.signals.map((r) => r.id)).toEqual(['a', 'a2', 'b']);
+	});
+
+	it('removes and toggles enabled', async () => {
+		const { store } = await makeStore();
+		store.addSignalRule(base('a'));
+		expect(store.setSignalRuleEnabled('a', false)).toBe(true);
+		expect(store.state.signals[0]?.enabled).toBe(false);
+		expect(store.removeSignalRule('a')).toBe(true);
+		expect(store.state.signals).toHaveLength(0);
+		expect(store.removeSignalRule('a')).toBe(false);
+	});
+});
+
 describe('normalizePath', () => {
 	it('normalizes separators and edges', () => {
 		expect(normalizePath('/a/b/')).toBe('a/b');
@@ -51,6 +238,12 @@ describe('parseData', () => {
 		expect(r.data).toEqual(defaultData());
 		expect(r.recovered).toBe(true);
 		expect(r.warnings).toHaveLength(1);
+	});
+
+	it('defaults signals to an empty array', () => {
+		const r = parseData(null);
+		expect(r.data.signals).toEqual([]);
+		expect(r.data.version).toBe(SCHEMA_VERSION);
 	});
 
 	it('rejects future versions instead of guessing', () => {
