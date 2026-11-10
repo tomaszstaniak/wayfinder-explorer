@@ -1,6 +1,11 @@
 /* Wayfinder: explorer styling is generated at runtime into
    <style data-wayfinder>. This file only styles Wayfinder's own UI. */
 
+/* Keep the active file visually stable across themes and folder depths. */
+.workspace-leaf-content[data-type="file-explorer"] .nav-file-title.is-active {
+	box-shadow: inset 3px 0 0 var(--interactive-accent);
+}
+
 .wayfinder-icon-suggestion {
 	display: flex;
 	align-items: center;

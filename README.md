@@ -25,6 +25,10 @@ Notion's or VS Code's sidebars are — with zero configuration.
    desaturated, reduced opacity, cascades with a per-subtree opt-out), and
    any folder can show a *count badge* — its item count in accent color
    whenever it's non-empty (an inbox pressure gauge).
+6. **Predictable active-file reveal.** Keep Obsidian's native reveal behavior,
+   or have Wayfinder place the active file at the center of the explorer —
+   instantly or with smooth scrolling. A consistent accent marker makes the
+   active row easy to reacquire at any folder depth.
 
 Assignments survive renames and moves. Everything is theme-aware (icons use
 `currentColor`; washes are `color-mix` over transparency) and works in light
@@ -137,14 +141,17 @@ from the rollup. Stored per folder; survives renames.
 
 ## How it works
 
-Wayfinder never touches the file explorer's DOM. It keeps a small data store
-(`data.json`) and compiles it into a single `<style data-wayfinder>` element.
-Disable the plugin and every trace is gone.
+Wayfinder keeps a small data store (`data.json`) and compiles visual rules into
+a single `<style data-wayfinder>` element. When active-file centering is
+enabled, it also scrolls Obsidian's existing active row into view; it does not
+replace or restructure the explorer. Disable the plugin and every trace is
+gone.
 
 ## Settings
 
 | Setting | Default | Meaning |
 |---|---|---|
+| Active file position | Native | Keep the nearest-edge reveal, or center instantly/smoothly |
 | Default file icons | on | Contextual icon per file type |
 | Default folder icons | on | Folder icon on every folder |
 | Background tint strength | 9% | Wash intensity; 0 disables the wash |

@@ -248,6 +248,27 @@ export class WayfinderSettingTab extends PluginSettingTab {
 				b.setButtonText('Detect and apply…').onClick(() => this.wayfinder.openParaPreset())
 			);
 
+		new Setting(containerEl).setName('Navigation').setHeading();
+
+		new Setting(containerEl)
+			.setName('Active file position')
+			.setDesc(
+				'Choose where the active file appears after Obsidian reveals it in the file explorer.'
+			)
+			.addDropdown((d) =>
+				d
+					.addOption('native', 'Native (nearest edge)')
+					.addOption('center', 'Center instantly')
+					.addOption('center-smooth', 'Center smoothly')
+					.setValue(s.activeFileRevealMode)
+					.onChange((v) =>
+						this.store.updateSettings({
+							activeFileRevealMode:
+								v === 'center' || v === 'center-smooth' ? v : 'native',
+						})
+					)
+				);
+
 		new Setting(containerEl).setName('Appearance').setHeading();
 
 		new Setting(containerEl)

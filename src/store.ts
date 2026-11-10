@@ -4,6 +4,8 @@ import {
 	ChildColorScheme,
 	ColorMode,
 	DEFAULT_SETTINGS,
+	ACTIVE_FILE_REVEAL_MODES,
+	ActiveFileRevealMode,
 	FOLDER_COUNT_MODES,
 	FileEntry,
 	EMPHASIS_VALUES,
@@ -126,6 +128,11 @@ function clampIntOrZero(v: unknown, min: number, max: number, fallback: number):
 function parseSettings(raw: unknown): WayfinderSettings {
 	const r = isRecord(raw) ? raw : {};
 	return {
+		activeFileRevealMode: ACTIVE_FILE_REVEAL_MODES.includes(
+			r.activeFileRevealMode as ActiveFileRevealMode
+		)
+			? (r.activeFileRevealMode as ActiveFileRevealMode)
+			: DEFAULT_SETTINGS.activeFileRevealMode,
 		defaultFileIcons:
 			typeof r.defaultFileIcons === 'boolean' ? r.defaultFileIcons : DEFAULT_SETTINGS.defaultFileIcons,
 		defaultFolderIcons:

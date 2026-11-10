@@ -91,6 +91,8 @@ export const SIGNAL_LIMITS = {
 export const SIGNAL_BG_ALPHA = 18;
 
 export interface WayfinderSettings {
+	/** Where Obsidian places the active file when revealing it in the explorer. */
+	activeFileRevealMode: ActiveFileRevealMode;
 	defaultFileIcons: boolean;
 	defaultFolderIcons: boolean;
 	/** Background wash strength, integer percent. */
@@ -135,6 +137,13 @@ export interface WayfinderSettings {
 	showGlobalTaskPane: boolean;
 }
 
+export type ActiveFileRevealMode = 'native' | 'center' | 'center-smooth';
+export const ACTIVE_FILE_REVEAL_MODES: readonly ActiveFileRevealMode[] = [
+	'native',
+	'center',
+	'center-smooth',
+];
+
 export type IconColorSource = 'text' | 'folder';
 export const ICON_COLOR_SOURCES: readonly IconColorSource[] = ['text', 'folder'];
 
@@ -161,6 +170,7 @@ export const SETTINGS_BOUNDS = {
 } as const;
 
 export const DEFAULT_SETTINGS: WayfinderSettings = {
+	activeFileRevealMode: 'native',
 	defaultFileIcons: true,
 	defaultFolderIcons: true,
 	tintStrength: 9,

@@ -32,6 +32,7 @@ import {
 } from './signal-resolve';
 import { buildInventory, PropertyStat } from './frontmatter-inventory';
 import { ResolvedSignal, SignalRule } from './types';
+import { centerActiveFile } from './active-file-reveal';
 
 export default class WayfinderPlugin extends Plugin {
 	private styleManager!: StyleManager;
@@ -59,6 +60,7 @@ export default class WayfinderPlugin extends Plugin {
 	private indexEventRefs: EventRef[] = [];
 	private indexing = false;
 	private pendingIndexFlush: (() => void) | null = null;
+	private activeFileRevealFrame: number | null = null;
 
 	async onload() {
 		this.styleManager = new StyleManager(document);
@@ -197,6 +199,11 @@ export default class WayfinderPlugin extends Plugin {
 		);
 		this.registerEvent(this.app.workspace.on('active-leaf-change', () => this.clearEditing()));
 		this.registerEvent(
+			this.app.workspace.on('file-open', (file) => {
+				if (file) this.scheduleActiveFileReveal(file.path);
+			})
+		);
+		this.registerEvent(
 			this.app.metadataCache.on('changed', (file) => {
 				this.updateContentIcons(file);
 				void this.updateFileTaskCount(file);
@@ -250,8 +257,21 @@ export default class WayfinderPlugin extends Plugin {
 
 	onunload() {
 		if (this.editingTimer !== null) window.clearTimeout(this.editingTimer);
+		if (this.activeFileRevealFrame !== null) window.cancelAnimationFrame(this.activeFileRevealFrame);
 		this.stopIndexing();
 		this.styleManager.unmount();
+	}
+
+	/** Run after Obsidian's native auto-reveal has expanded the path and updated the explorer DOM. */
+	private scheduleActiveFileReveal(path: string): void {
+		if (this.store.state.settings.activeFileRevealMode === 'native') return;
+		if (this.activeFileRevealFrame !== null) window.cancelAnimationFrame(this.activeFileRevealFrame);
+		this.activeFileRevealFrame = window.requestAnimationFrame(() => {
+			this.activeFileRevealFrame = window.requestAnimationFrame(() => {
+				this.activeFileRevealFrame = null;
+				centerActiveFile(document, path, this.store.state.settings.activeFileRevealMode);
+			});
+		});
 	}
 
 	/** Forward the index's coalesced flush (bound once via debounce) to its latest callback. */

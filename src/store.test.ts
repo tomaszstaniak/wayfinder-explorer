@@ -318,6 +318,15 @@ describe('parseData', () => {
 		expect(bogus.data.settings.folderCountMode).toBe('items');
 	});
 
+	it('validates active file reveal mode and falls back to native', () => {
+		const centered = parseData({ version: 1, settings: { activeFileRevealMode: 'center' } });
+		expect(centered.data.settings.activeFileRevealMode).toBe('center');
+		const smooth = parseData({ version: 1, settings: { activeFileRevealMode: 'center-smooth' } });
+		expect(smooth.data.settings.activeFileRevealMode).toBe('center-smooth');
+		const bogus = parseData({ version: 1, settings: { activeFileRevealMode: 'bottom' } });
+		expect(bogus.data.settings.activeFileRevealMode).toBe('native');
+	});
+
 	it('validates emphasis and countBadge on folder entries', () => {
 		const r = parseData({
 			version: 1,
