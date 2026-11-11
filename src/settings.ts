@@ -6,10 +6,12 @@ import { SignalRuleModal } from './signal-rule-modal';
 import { Store } from './store';
 import { DEFAULT_SETTINGS, SETTINGS_BOUNDS, SignalRule } from './types';
 import type WayfinderPlugin from './main';
+import { filterSettings } from './settings-search';
 
 export class WayfinderSettingTab extends PluginSettingTab {
 	/** One-shot listener that re-renders once frontmatter suggestions are ready. */
 	private resolvedRef: EventRef | null = null;
+	private searchQuery = '';
 
 	constructor(
 		app: App,
@@ -23,6 +25,20 @@ export class WayfinderSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 		const s = this.store.state.settings;
+
+		const search = new Setting(containerEl)
+			.setName('Search settings')
+			.setDesc('Filter by section, setting name, or description.')
+			.addSearch((input) =>
+				input
+					.setPlaceholder('Search wayfinder settings…')
+					.setValue(this.searchQuery)
+					.onChange((value) => {
+						this.searchQuery = value;
+						filterSettings(containerEl, value);
+					})
+			);
+		search.settingEl.addClass('wayfinder-settings-search');
 
 		new Setting(containerEl)
 			.setName('Default file icons')
@@ -352,6 +368,13 @@ export class WayfinderSettingTab extends PluginSettingTab {
 					this.display();
 				})
 			);
+
+		const empty = containerEl.createDiv({
+			cls: 'wayfinder-settings-empty',
+			text: 'No Wayfinder settings match your search.',
+		});
+		empty.hidden = true;
+		filterSettings(containerEl, this.searchQuery);
 
 		// Re-render once metadata resolves so signal suggestions appear (one-shot).
 		if (!this.wayfinder.isMetadataReady() && !this.resolvedRef) {

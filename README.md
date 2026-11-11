@@ -149,6 +149,9 @@ gone.
 
 ## Settings
 
+Use **Search settings** at the top of the Wayfinder settings tab to filter by
+section, setting name, or description.
+
 | Setting | Default | Meaning |
 |---|---|---|
 | Active file position | Native | Keep the nearest-edge reveal, or center instantly/smoothly |
